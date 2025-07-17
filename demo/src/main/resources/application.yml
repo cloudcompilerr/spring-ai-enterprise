@@ -6,20 +6,42 @@ spring:
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 20000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1200000
   jpa:
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc.batch_size: 20
+        order_inserts: true
+        order_updates: true
     show-sql: false
   ai:
     openai:
       api-key: ${OPENAI_API_KEY}
       base-url: https://api.openai.com
+  thymeleaf:
+    cache: false
+    mode: HTML
+    encoding: UTF-8
+    prefix: classpath:/templates/
+    suffix: .html
       
 server:
   port: 8080
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,application/javascript,application/json
+    min-response-size: 1024
 
 ai:
   openai:
@@ -42,3 +64,16 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     operations-sorter: method
+    tags-sorter: alpha
+    try-it-out-enabled: true
+    filter: true
+
+logging:
+  level:
+    root: INFO
+    com.example.ai: DEBUG
+    org.springframework.ai: INFO
+    org.springframework.web: INFO
+    org.hibernate: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

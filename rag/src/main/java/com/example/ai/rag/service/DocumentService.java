@@ -30,6 +30,15 @@ public class DocumentService {
     private final AiProperties aiProperties;
 
     /**
+     * Gets all documents.
+     *
+     * @return List of all documents
+     */
+    public List<Document> getAllDocuments() {
+        return documentRepository.findAll();
+    }
+
+    /**
      * Creates a new document and splits it into chunks.
      *
      * @param title The document title
@@ -134,6 +143,16 @@ public class DocumentService {
     }
 
     /**
+     * Checks if a document exists.
+     *
+     * @param id The document ID
+     * @return True if the document exists, false otherwise
+     */
+    public boolean documentExists(Long id) {
+        return documentRepository.existsById(id);
+    }
+
+    /**
      * Searches for documents by title.
      *
      * @param title The title to search for
@@ -141,6 +160,42 @@ public class DocumentService {
      */
     public List<Document> searchDocumentsByTitle(String title) {
         return documentRepository.findByTitleContainingIgnoreCase(title);
+    }
+
+    /**
+     * Updates a document.
+     *
+     * @param id The document ID
+     * @param title The new title
+     * @param content The new content
+     * @param sourceUrl The new source URL
+     * @param documentType The new document type
+     * @return The updated document
+     */
+    @Transactional
+    public Document updateDocument(Long id, String title, String content, String sourceUrl, String documentType) {
+        Document document = documentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Document not found with ID: " + id));
+        
+        // Update document fields
+        document.setTitle(title);
+        document.setContent(content);
+        document.setSourceUrl(sourceUrl);
+        document.setDocumentType(documentType);
+        document.setUpdatedAt(LocalDateTime.now());
+        
+        document = documentRepository.save(document);
+        
+        // Delete old chunks
+        List<DocumentChunk> oldChunks = documentChunkRepository.findByDocument(document);
+        documentChunkRepository.deleteAll(oldChunks);
+        
+        // Create new chunks
+        List<DocumentChunk> newChunks = splitAndEmbedDocument(document);
+        documentChunkRepository.saveAll(newChunks);
+        
+        log.info("Updated document: {} with {} chunks", document.getId(), newChunks.size());
+        return document;
     }
 
     /**
@@ -156,6 +211,8 @@ public class DocumentService {
             documentChunkRepository.deleteAll(chunks);
             documentRepository.delete(document.get());
             log.info("Deleted document: {} with {} chunks", id, chunks.size());
+        } else {
+            log.warn("Attempted to delete non-existent document with ID: {}", id);
         }
     }
 }

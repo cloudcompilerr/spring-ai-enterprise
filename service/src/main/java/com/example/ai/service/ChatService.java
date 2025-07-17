@@ -5,6 +5,7 @@ import com.example.ai.mcp.model.McpTool;
 import com.example.ai.mcp.service.McpService;
 import com.example.ai.prompt.model.PromptTemplate;
 import com.example.ai.prompt.service.PromptEngineeringService;
+import com.example.ai.prompt.templates.SystemPromptTemplates;
 import com.example.ai.rag.service.RagService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,7 @@ import java.util.Map;
 
 /**
  * Service for chat-related operations.
- * This service provides methods for generating chat responses with and without RAG.
+ * This service provides methods for generating chat responses with different capabilities.
  */
 @Slf4j
 @Service
@@ -33,6 +34,7 @@ public class ChatService {
     private final RagService ragService;
     private final PromptEngineeringService promptEngineeringService;
     private final McpService mcpService;
+    private final McpToolService mcpToolService;
     private final AiProperties aiProperties;
 
     /**
@@ -48,6 +50,9 @@ public class ChatService {
         // Add system message if provided
         if (systemPrompt != null && !systemPrompt.isEmpty()) {
             messages.add(new SystemMessage(systemPrompt));
+        } else {
+            // Use default system prompt if none provided
+            messages.add(new SystemMessage(SystemPromptTemplates.GENERAL_PURPOSE.format()));
         }
         
         // Add user message
@@ -68,6 +73,7 @@ public class ChatService {
      * @return The AI-generated response
      */
     public String generateRagResponse(String userPrompt) {
+        log.info("Generating RAG response for prompt: {}", userPrompt);
         return ragService.answerQuestion(userPrompt);
     }
 
@@ -79,14 +85,35 @@ public class ChatService {
      * @return The AI-generated response
      */
     public String generateTemplatedResponse(String templateName, Map<String, String> variables) {
+        log.info("Generating templated response using template: {}", templateName);
+        
+        // Select the appropriate template based on the template name
+        PromptTemplate systemPrompt;
+        switch (templateName) {
+            case "code":
+                systemPrompt = SystemPromptTemplates.CODE_GENERATION;
+                break;
+            case "data":
+                systemPrompt = SystemPromptTemplates.DATA_ANALYSIS;
+                break;
+            case "summary":
+                systemPrompt = SystemPromptTemplates.SUMMARIZATION;
+                break;
+            case "qa":
+                systemPrompt = SystemPromptTemplates.QUESTION_ANSWERING;
+                break;
+            default:
+                systemPrompt = SystemPromptTemplates.GENERAL_PURPOSE;
+        }
+        
         PromptTemplate userPrompt = PromptTemplate.builder()
                 .template(variables.get("prompt"))
                 .build();
         
-        Map<String, String> promptVars = new HashMap<>(variables);
-        promptVars.remove("prompt");
+        Map<String, String> systemVars = new HashMap<>(variables);
+        systemVars.remove("prompt");
         
-        return promptEngineeringService.executePrompt(userPrompt, promptVars);
+        return promptEngineeringService.executePrompt(systemPrompt, systemVars, userPrompt, new HashMap<>());
     }
 
     /**
@@ -94,10 +121,26 @@ public class ChatService {
      *
      * @param userPrompt The user's prompt
      * @param systemPrompt Optional system prompt to guide the AI's behavior
-     * @param tools The tools to make available
+     * @param toolNames List of tool names to make available
      * @return The AI-generated response
      */
-    public String generateToolAugmentedResponse(String userPrompt, String systemPrompt, List<McpTool> tools) {
+    public String generateToolAugmentedResponse(String userPrompt, String systemPrompt, List<String> toolNames) {
+        log.info("Generating tool-augmented response with tools: {}", toolNames);
+        
+        // Get the tools by name
+        List<McpTool> tools = new ArrayList<>();
+        for (String name : toolNames) {
+            McpTool tool = mcpToolService.getToolByName(name);
+            if (tool != null) {
+                tools.add(tool);
+            }
+        }
+        
+        // If no system prompt is provided, use a default one
+        if (systemPrompt == null || systemPrompt.isEmpty()) {
+            systemPrompt = "You are a helpful assistant with access to tools. Use the tools when appropriate to answer the user's question.";
+        }
+        
         return mcpService.executeWithTools(userPrompt, systemPrompt, tools);
     }
 }

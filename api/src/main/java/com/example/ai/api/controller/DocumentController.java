@@ -6,8 +6,11 @@ import com.example.ai.rag.model.Document;
 import com.example.ai.rag.service.DocumentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,12 +19,32 @@ import java.util.stream.Collectors;
 /**
  * REST controller for document operations.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/documents")
 @RequiredArgsConstructor
 public class DocumentController {
 
     private final DocumentService documentService;
+
+    /**
+     * Endpoint to get all documents.
+     *
+     * @return List of all documents
+     */
+    @GetMapping
+    public ResponseEntity<List<DocumentResponse>> getAllDocuments() {
+        try {
+            List<Document> documents = documentService.getAllDocuments();
+            List<DocumentResponse> responses = documents.stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(responses);
+        } catch (Exception e) {
+            log.error("Error retrieving all documents", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to retrieve documents", e);
+        }
+    }
 
     /**
      * Endpoint to create a new document.
@@ -31,13 +54,18 @@ public class DocumentController {
      */
     @PostMapping
     public ResponseEntity<DocumentResponse> createDocument(@Valid @RequestBody DocumentRequest request) {
-        Document document = documentService.createDocument(
-                request.getTitle(),
-                request.getContent(),
-                request.getSourceUrl(),
-                request.getDocumentType()
-        );
-        return ResponseEntity.ok(mapToResponse(document));
+        try {
+            Document document = documentService.createDocument(
+                    request.getTitle(),
+                    request.getContent(),
+                    request.getSourceUrl(),
+                    request.getDocumentType()
+            );
+            return ResponseEntity.status(HttpStatus.CREATED).body(mapToResponse(document));
+        } catch (Exception e) {
+            log.error("Error creating document", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create document", e);
+        }
     }
 
     /**
@@ -48,10 +76,17 @@ public class DocumentController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<DocumentResponse> getDocument(@PathVariable Long id) {
-        Optional<Document> document = documentService.getDocumentById(id);
-        return document
-                .map(doc -> ResponseEntity.ok(mapToResponse(doc)))
-                .orElse(ResponseEntity.notFound().build());
+        try {
+            Optional<Document> document = documentService.getDocumentById(id);
+            return document
+                    .map(doc -> ResponseEntity.ok(mapToResponse(doc)))
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found with ID: " + id));
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error retrieving document with ID: {}", id, e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to retrieve document", e);
+        }
     }
 
     /**
@@ -62,11 +97,16 @@ public class DocumentController {
      */
     @GetMapping("/search")
     public ResponseEntity<List<DocumentResponse>> searchDocuments(@RequestParam String title) {
-        List<Document> documents = documentService.searchDocumentsByTitle(title);
-        List<DocumentResponse> responses = documents.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(responses);
+        try {
+            List<Document> documents = documentService.searchDocumentsByTitle(title);
+            List<DocumentResponse> responses = documents.stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(responses);
+        } catch (Exception e) {
+            log.error("Error searching documents by title: {}", title, e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to search documents", e);
+        }
     }
 
     /**
@@ -77,8 +117,20 @@ public class DocumentController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDocument(@PathVariable Long id) {
-        documentService.deleteDocument(id);
-        return ResponseEntity.noContent().build();
+        try {
+            // Check if document exists
+            if (!documentService.documentExists(id)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found with ID: " + id);
+            }
+            
+            documentService.deleteDocument(id);
+            return ResponseEntity.noContent().build();
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error deleting document with ID: {}", id, e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete document", e);
+        }
     }
 
     /**

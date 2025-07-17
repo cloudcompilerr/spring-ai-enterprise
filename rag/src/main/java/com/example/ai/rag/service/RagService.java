@@ -57,42 +57,52 @@ public class RagService {
      * @return The AI-generated answer
      */
     public String answerQuestion(String question) {
-        // Create embedding for the question
-        float[] questionEmbedding = embeddingClient.embed(question).getEmbedding();
-        
-        // Retrieve relevant document chunks
-        List<DocumentChunk> relevantChunks = documentChunkRepository.findSimilarChunksWithThreshold(
-                questionEmbedding,
-                aiProperties.getRag().getSimilarityThreshold(),
-                aiProperties.getRag().getTopK());
-        
-        if (relevantChunks.isEmpty()) {
-            log.info("No relevant chunks found for question: {}", question);
-            return "I don't have enough information to answer this question.";
+        if (question == null || question.trim().isEmpty()) {
+            throw new IllegalArgumentException("Question cannot be empty");
         }
         
-        // Build context from retrieved chunks
-        String context = buildContext(relevantChunks);
-        
-        // Create prompt with context and question
-        Map<String, String> promptVars = new HashMap<>();
-        promptVars.put("context", context);
-        promptVars.put("question", question);
-        
-        String userPromptText = RAG_USER_PROMPT.format(promptVars);
-        String systemPromptText = RAG_SYSTEM_PROMPT.format();
-        
-        List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(systemPromptText));
-        messages.add(new UserMessage(userPromptText));
-        
-        Prompt prompt = new Prompt(messages);
-        
-        // Generate answer
-        String answer = chatClient.call(prompt).getResult().getOutput().getContent();
-        log.info("Generated answer for question: {}", question);
-        
-        return answer;
+        try {
+            log.debug("Creating embedding for question: {}", question);
+            float[] questionEmbedding = embeddingClient.embed(question).getEmbedding();
+            
+            log.debug("Retrieving relevant document chunks");
+            List<DocumentChunk> relevantChunks = documentChunkRepository.findSimilarChunksWithThreshold(
+                    questionEmbedding,
+                    aiProperties.getRag().getSimilarityThreshold(),
+                    aiProperties.getRag().getTopK());
+            
+            if (relevantChunks.isEmpty()) {
+                log.info("No relevant chunks found for question: {}", question);
+                return "I don't have enough information in my knowledge base to answer this question.";
+            }
+            
+            log.debug("Found {} relevant chunks", relevantChunks.size());
+            String context = buildContext(relevantChunks);
+            
+            // Create prompt with context and question
+            Map<String, String> promptVars = new HashMap<>();
+            promptVars.put("context", context);
+            promptVars.put("question", question);
+            
+            String userPromptText = RAG_USER_PROMPT.format(promptVars);
+            String systemPromptText = RAG_SYSTEM_PROMPT.format();
+            
+            List<Message> messages = new ArrayList<>();
+            messages.add(new SystemMessage(systemPromptText));
+            messages.add(new UserMessage(userPromptText));
+            
+            Prompt prompt = new Prompt(messages);
+            
+            // Generate answer
+            log.debug("Generating answer using AI model");
+            String answer = chatClient.call(prompt).getResult().getOutput().getContent();
+            log.info("Generated answer for question: {}", question);
+            
+            return answer;
+        } catch (Exception e) {
+            log.error("Error in RAG process", e);
+            throw new RuntimeException("Failed to generate answer using RAG", e);
+        }
     }
 
     /**
@@ -109,5 +119,62 @@ public class RagService {
                     return "Document: " + docTitle + " (ID: " + docId + ")\n" + chunk.getContent();
                 })
                 .collect(Collectors.joining("\n\n"));
+    }
+    
+    /**
+     * Performs RAG to answer a question with specific parameters.
+     *
+     * @param question The user's question
+     * @param topK Number of chunks to retrieve
+     * @param similarityThreshold Similarity threshold for retrieval
+     * @return The AI-generated answer
+     */
+    public String answerQuestionWithParams(String question, int topK, float similarityThreshold) {
+        if (question == null || question.trim().isEmpty()) {
+            throw new IllegalArgumentException("Question cannot be empty");
+        }
+        
+        try {
+            log.debug("Creating embedding for question with custom params: {}", question);
+            float[] questionEmbedding = embeddingClient.embed(question).getEmbedding();
+            
+            log.debug("Retrieving relevant document chunks with topK={}, threshold={}", topK, similarityThreshold);
+            List<DocumentChunk> relevantChunks = documentChunkRepository.findSimilarChunksWithThreshold(
+                    questionEmbedding,
+                    similarityThreshold,
+                    topK);
+            
+            if (relevantChunks.isEmpty()) {
+                log.info("No relevant chunks found for question: {}", question);
+                return "I don't have enough information in my knowledge base to answer this question.";
+            }
+            
+            log.debug("Found {} relevant chunks", relevantChunks.size());
+            String context = buildContext(relevantChunks);
+            
+            // Create prompt with context and question
+            Map<String, String> promptVars = new HashMap<>();
+            promptVars.put("context", context);
+            promptVars.put("question", question);
+            
+            String userPromptText = RAG_USER_PROMPT.format(promptVars);
+            String systemPromptText = RAG_SYSTEM_PROMPT.format();
+            
+            List<Message> messages = new ArrayList<>();
+            messages.add(new SystemMessage(systemPromptText));
+            messages.add(new UserMessage(userPromptText));
+            
+            Prompt prompt = new Prompt(messages);
+            
+            // Generate answer
+            log.debug("Generating answer using AI model");
+            String answer = chatClient.call(prompt).getResult().getOutput().getContent();
+            log.info("Generated answer for question with custom params: {}", question);
+            
+            return answer;
+        } catch (Exception e) {
+            log.error("Error in RAG process with custom params", e);
+            throw new RuntimeException("Failed to generate answer using RAG with custom params", e);
+        }
     }
 }

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Management - Spring AI Showcase</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">Spring AI Showcase</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/chat">Chat</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/rag">RAG</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/documents">Documents</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <h1>Document Management</h1>
+                <p class="lead">Add and manage documents for the RAG knowledge base.</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Add New Document</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="documentForm">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">Title</label>
+                                <input type="text" class="form-control" id="title" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="content" class="form-label">Content</label>
+                                <textarea class="form-control" id="content" rows="10" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="sourceUrl" class="form-label">Source URL (optional)</label>
+                                <input type="text" class="form-control" id="sourceUrl">
+                            </div>
+                            <div class="mb-3">
+                                <label for="documentType" class="form-label">Document Type (optional)</label>
+                                <select class="form-control" id="documentType">
+                                    <option value="">Select a type</option>
+                                    <option value="article">Article</option>
+                                    <option value="documentation">Documentation</option>
+                                    <option value="report">Report</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add Document</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5>Document List</h5>
+                        <div class="input-group" style="max-width: 300px;">
+                            <input type="text" class="form-control" id="searchTitle" placeholder="Search by title...">
+                            <button class="btn btn-outline-secondary" type="button" id="searchButton">Search</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="documentList" class="list-group">
+                            <div class="text-center py-3">
+                                <p class="text-muted">No documents found. Add a document to get started.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Modal -->
+    <div class="modal fade" id="documentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="modalContent" style="white-space: pre-wrap;"></p>
+                    <hr>
+                    <p><strong>Source:</strong> <span id="modalSource"></span></p>
+                    <p><strong>Type:</strong> <span id="modalType"></span></p>
+                    <p><strong>Created:</strong> <span id="modalCreated"></span></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" id="deleteButton">Delete</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load documents on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDocuments();
+            
+            // Set up event listeners
+            document.getElementById('documentForm').addEventListener('submit', addDocument);
+            document.getElementById('searchButton').addEventListener('click', searchDocuments);
+        });
+        
+        function loadDocuments() {
+            fetch('/api/documents')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch documents');
+                    }
+                    return response.json();
+                })
+                .then(documents => {
+                    displayDocuments(documents);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+        
+        function searchDocuments() {
+            const searchTitle = document.getElementById('searchTitle').value;
+            
+            if (searchTitle.trim() === '') {
+                loadDocuments();
+                return;
+            }
+            
+            fetch(`/api/documents/search?title=${encodeURIComponent(searchTitle)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to search documents');
+                    }
+                    return response.json();
+                })
+                .then(documents => {
+                    displayDocuments(documents);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+        
+        function displayDocuments(documents) {
+            const documentList = document.getElementById('documentList');
+            documentList.innerHTML = '';
+            
+            if (documents.length === 0) {
+                documentList.innerHTML = `
+                    <div class="text-center py-3">
+                        <p class="text-muted">No documents found. Add a document to get started.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            documents.forEach(doc => {
+                const item = document.createElement('a');
+                item.className = 'list-group-item list-group-item-action';
+                item.href = '#';
+                item.innerHTML = `
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">${doc.title}</h5>
+                        <small>${new Date(doc.createdAt).toLocaleDateString()}</small>
+                    </div>
+                    <p class="mb-1">${doc.content.substring(0, 100)}${doc.content.length > 100 ? '...' : ''}</p>
+                    <small>${doc.documentType || 'No type'}</small>
+                `;
+                
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showDocumentModal(doc);
+                });
+                
+                documentList.appendChild(item);
+            });
+        }
+        
+        function showDocumentModal(doc) {
+            document.getElementById('modalTitle').textContent = doc.title;
+            document.getElementById('modalContent').textContent = doc.content;
+            document.getElementById('modalSource').textContent = doc.sourceUrl || 'N/A';
+            document.getElementById('modalType').textContent = doc.documentType || 'N/A';
+            document.getElementById('modalCreated').textContent = new Date(doc.createdAt).toLocaleString();
+            
+            // Set up delete button
+            const deleteButton = document.getElementById('deleteButton');
+            deleteButton.onclick = function() {
+                deleteDocument(doc.id);
+            };
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('documentModal'));
+            modal.show();
+        }
+        
+        function addDocument(e) {
+            e.preventDefault();
+            
+            const title = document.getElementById('title').value;
+            const content = document.getElementById('content').value;
+            const sourceUrl = document.getElementById('sourceUrl').value;
+            const documentType = document.getElementById('documentType').value;
+            
+            fetch('/upload-document', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'title': title,
+                    'content': content,
+                    'sourceUrl': sourceUrl,
+                    'documentType': documentType
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to add document');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Reset form
+                document.getElementById('documentForm').reset();
+                
+                // Show success message
+                alert('Document added successfully!');
+                
+                // Reload documents
+                loadDocuments();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to add document. Please try again.');
+            });
+        }
+        
+        function deleteDocument(id) {
+            if (!confirm('Are you sure you want to delete this document?')) {
+                return;
+            }
+            
+            fetch(`/api/documents/${id}`, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to delete document');
+                }
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('documentModal'));
+                modal.hide();
+                
+                // Show success message
+                alert('Document deleted successfully!');
+                
+                // Reload documents
+                loadDocuments();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete document. Please try again.');
+            });
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
