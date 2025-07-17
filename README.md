@@ -28,7 +28,7 @@ The application is organized into the following modules:
 
 ## Prerequisites
 
-- Java 17 or higher
+- Java 21 or higher
 - Maven 3.8 or higher
 - PostgreSQL 14 or higher with pgvector extension
 - OpenAI API key
@@ -73,6 +73,19 @@ The application is organized into the following modules:
 
 ## Features
 
+### Java 21 Features
+
+This project leverages modern Java 21 features to enhance code quality and developer productivity:
+
+- **Pattern Matching for Switch**: Enhanced switch expressions with type patterns and guards
+- **Record Patterns**: Destructuring records in pattern matching contexts
+- **String Templates**: More readable string formatting (preview feature)
+- **Enhanced Stream API**: Improved collectors and stream operations
+- **Sealed Classes**: Controlled inheritance hierarchies for better domain modeling
+- **Text Blocks**: Multi-line string literals for improved readability
+- **Virtual Threads**: Lightweight threads for high-throughput concurrent applications
+- **Enhanced Error Handling**: More expressive try-catch blocks and exception handling
+
 ### Prompt Engineering
 
 - Reusable prompt templates
@@ -97,9 +110,12 @@ The application is organized into the following modules:
 ### MCP (Model Context Protocol)
 
 - Tool registration and management
-- Weather tool example
+- Advanced MCP tools leveraging Java 21 features:
+  - Weather tool for location-based weather information
+  - Text analyzer tool for sentiment analysis, entity extraction, and text statistics
+  - File analyzer tool for file/directory analysis and content inspection
 - Tool-augmented chat responses
-- Dynamic tool selection
+- Dynamic tool selection and execution
 
 ## API Endpoints
 

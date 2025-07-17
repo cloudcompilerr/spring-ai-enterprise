@@ -79,6 +79,7 @@ public class ChatService {
 
     /**
      * Generates a chat response using a specific prompt template.
+     * Uses Java 21 switch expressions for more concise code.
      *
      * @param templateName The name of the template to use
      * @param variables The variables to fill in the template
@@ -87,24 +88,14 @@ public class ChatService {
     public String generateTemplatedResponse(String templateName, Map<String, String> variables) {
         log.info("Generating templated response using template: {}", templateName);
         
-        // Select the appropriate template based on the template name
-        PromptTemplate systemPrompt;
-        switch (templateName) {
-            case "code":
-                systemPrompt = SystemPromptTemplates.CODE_GENERATION;
-                break;
-            case "data":
-                systemPrompt = SystemPromptTemplates.DATA_ANALYSIS;
-                break;
-            case "summary":
-                systemPrompt = SystemPromptTemplates.SUMMARIZATION;
-                break;
-            case "qa":
-                systemPrompt = SystemPromptTemplates.QUESTION_ANSWERING;
-                break;
-            default:
-                systemPrompt = SystemPromptTemplates.GENERAL_PURPOSE;
-        }
+        // Using Java 21 switch expressions for more concise code
+        PromptTemplate systemPrompt = switch (templateName) {
+            case "code" -> SystemPromptTemplates.CODE_GENERATION;
+            case "data" -> SystemPromptTemplates.DATA_ANALYSIS;
+            case "summary" -> SystemPromptTemplates.SUMMARIZATION;
+            case "qa" -> SystemPromptTemplates.QUESTION_ANSWERING;
+            default -> SystemPromptTemplates.GENERAL_PURPOSE;
+        };
         
         PromptTemplate userPrompt = PromptTemplate.builder()
                 .template(variables.get("prompt"))
@@ -118,6 +109,7 @@ public class ChatService {
 
     /**
      * Generates a chat response with MCP tools.
+     * Uses Java 21 features like stream enhancements and pattern matching.
      *
      * @param userPrompt The user's prompt
      * @param systemPrompt Optional system prompt to guide the AI's behavior
@@ -127,20 +119,17 @@ public class ChatService {
     public String generateToolAugmentedResponse(String userPrompt, String systemPrompt, List<String> toolNames) {
         log.info("Generating tool-augmented response with tools: {}", toolNames);
         
-        // Get the tools by name
-        List<McpTool> tools = new ArrayList<>();
-        for (String name : toolNames) {
-            McpTool tool = mcpToolService.getToolByName(name);
-            if (tool != null) {
-                tools.add(tool);
-            }
-        }
+        // Using Java 21 enhanced Stream API to filter and map in one operation
+        List<McpTool> tools = toolNames.stream()
+                .map(mcpToolService::getToolByName)
+                .filter(tool -> tool != null)
+                .toList(); // Java 21 immutable list collector
         
-        // If no system prompt is provided, use a default one
-        if (systemPrompt == null || systemPrompt.isEmpty()) {
-            systemPrompt = "You are a helpful assistant with access to tools. Use the tools when appropriate to answer the user's question.";
-        }
+        // Using Java 21 pattern matching for instanceof with conditional binding
+        String effectiveSystemPrompt = systemPrompt instanceof String s && !s.isEmpty() 
+                ? s 
+                : "You are a helpful assistant with access to tools. Use the tools when appropriate to answer the user's question.";
         
-        return mcpService.executeWithTools(userPrompt, systemPrompt, tools);
+        return mcpService.executeWithTools(userPrompt, effectiveSystemPrompt, tools);
     }
 }
