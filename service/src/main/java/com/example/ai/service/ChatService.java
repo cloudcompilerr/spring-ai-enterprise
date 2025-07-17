@@ -1,6 +1,8 @@
 package com.example.ai.service;
 
 import com.example.ai.core.config.AiProperties;
+import com.example.ai.mcp.model.McpTool;
+import com.example.ai.mcp.service.McpService;
 import com.example.ai.prompt.model.PromptTemplate;
 import com.example.ai.prompt.service.PromptEngineeringService;
 import com.example.ai.rag.service.RagService;
@@ -30,6 +32,7 @@ public class ChatService {
     private final ChatClient chatClient;
     private final RagService ragService;
     private final PromptEngineeringService promptEngineeringService;
+    private final McpService mcpService;
     private final AiProperties aiProperties;
 
     /**
@@ -84,5 +87,17 @@ public class ChatService {
         promptVars.remove("prompt");
         
         return promptEngineeringService.executePrompt(userPrompt, promptVars);
+    }
+
+    /**
+     * Generates a chat response with MCP tools.
+     *
+     * @param userPrompt The user's prompt
+     * @param systemPrompt Optional system prompt to guide the AI's behavior
+     * @param tools The tools to make available
+     * @return The AI-generated response
+     */
+    public String generateToolAugmentedResponse(String userPrompt, String systemPrompt, List<McpTool> tools) {
+        return mcpService.executeWithTools(userPrompt, systemPrompt, tools);
     }
 }
