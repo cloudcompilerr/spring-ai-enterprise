@@ -1,0 +1,41 @@
+@startuml C4-Container
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Spring AI Enterprise - Container Diagram
+
+Person(user, "User", "A user who wants to interact with AI capabilities")
+
+System_Boundary(springAiEnterprise, "Spring AI Enterprise") {
+    Container(webApp, "Web Application", "Spring Boot, Thymeleaf", "Provides a web interface for users to interact with AI capabilities")
+    Container(apiApp, "API Application", "Spring Boot, REST", "Provides REST endpoints for AI capabilities")
+    Container(serviceLayer, "Service Layer", "Spring Boot", "Implements business logic for AI capabilities")
+    Container(ragSystem, "RAG System", "Spring Boot", "Implements Retrieval-Augmented Generation")
+    Container(vectorDb, "Vector Database Integration", "Spring Boot", "Integrates with vector database for semantic search")
+    Container(mcpTools, "MCP Tools", "Spring Boot", "Implements Model Context Protocol tools")
+    Container(promptEng, "Prompt Engineering", "Spring Boot", "Implements prompt templates and strategies")
+    Container(coreConfig, "Core Configuration", "Spring Boot", "Provides core configuration and utilities")
+}
+
+System_Ext(openAI, "OpenAI API", "Provides AI models for chat completions and embeddings")
+SystemDb_Ext(postgres, "PostgreSQL with pgvector", "Stores documents, chunks, and vector embeddings")
+
+Rel(user, webApp, "Uses", "HTTP/HTML")
+Rel(webApp, apiApp, "Calls", "HTTP/REST")
+Rel(apiApp, serviceLayer, "Uses", "Java Method Calls")
+Rel(serviceLayer, ragSystem, "Uses", "Java Method Calls")
+Rel(serviceLayer, mcpTools, "Uses", "Java Method Calls")
+Rel(serviceLayer, promptEng, "Uses", "Java Method Calls")
+Rel(ragSystem, vectorDb, "Uses", "Java Method Calls")
+Rel(ragSystem, openAI, "Calls for embeddings and completions", "HTTPS/REST")
+Rel(vectorDb, postgres, "Reads/Writes vectors", "JDBC")
+Rel(mcpTools, openAI, "Calls for tool-augmented completions", "HTTPS/REST")
+Rel(promptEng, openAI, "Calls for prompt-based completions", "HTTPS/REST")
+Rel(ragSystem, coreConfig, "Uses", "Java Method Calls")
+Rel(mcpTools, coreConfig, "Uses", "Java Method Calls")
+Rel(promptEng, coreConfig, "Uses", "Java Method Calls")
+Rel(vectorDb, coreConfig, "Uses", "Java Method Calls")
+Rel(serviceLayer, coreConfig, "Uses", "Java Method Calls")
+
+@enduml

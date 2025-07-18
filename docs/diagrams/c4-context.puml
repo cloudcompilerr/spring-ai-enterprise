@@ -1,0 +1,19 @@
+@startuml C4-Context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Spring AI Enterprise - System Context Diagram
+
+Person(user, "User", "A user who wants to interact with AI capabilities")
+
+System(springAiEnterprise, "Spring AI Enterprise", "A comprehensive Spring Boot application that provides various AI capabilities")
+
+System_Ext(openAI, "OpenAI API", "Provides AI models for chat completions and embeddings")
+SystemDb_Ext(postgres, "PostgreSQL with pgvector", "Stores documents, chunks, and vector embeddings")
+
+Rel(user, springAiEnterprise, "Uses", "HTTP/Web UI")
+Rel(springAiEnterprise, openAI, "Calls", "HTTPS/REST")
+Rel(springAiEnterprise, postgres, "Reads/Writes", "JDBC")
+
+@enduml

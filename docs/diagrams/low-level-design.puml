@@ -1,0 +1,390 @@
+@startuml Low-Level Design
+!theme plain
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+skinparam backgroundColor white
+skinparam ArrowColor black
+skinparam ClassBorderColor black
+skinparam ClassBackgroundColor #f5f5f5
+skinparam NoteBorderColor gray
+skinparam NoteBackgroundColor #fffff0
+
+title Spring AI Enterprise - Low-Level Design
+
+' Core Module
+package "Core Module" {
+  class AiProperties {
+    -OpenAi openai
+    -Rag rag
+    -VectorDb vectorDb
+    +getOpenai(): OpenAi
+    +getRag(): Rag
+    +getVectorDb(): VectorDb
+  }
+  
+  class CoreConfig {
+    +embeddingClient(OpenAiApi): EmbeddingClient
+  }
+  
+  record ModelConfig {
+    -String model
+    -String embeddingModel
+    -float temperature
+    -int maxTokens
+    +withTemperature(float): ModelConfig
+    +withMaxTokens(int): ModelConfig
+  }
+  
+  record RagConfig {
+    -int topK
+    -float similarityThreshold
+    -int chunkSize
+    -int chunkOverlap
+    +withTopK(int): RagConfig
+    +withSimilarityThreshold(float): RagConfig
+  }
+  
+  record VectorDbConfig {
+    -String type
+    -int dimension
+    +withDimension(int): VectorDbConfig
+  }
+  
+  AiProperties --> ModelConfig : creates
+  AiProperties --> RagConfig : creates
+  AiProperties --> VectorDbConfig : creates
+}
+
+' Prompt Engineering Module
+package "Prompt Engineering Module" {
+  class PromptTemplate {
+    -String template
+    -Map<String, String> defaultValues
+    +format(Map<String, String>): String
+    +format(String, String): String
+    +format(): String
+    +combine(PromptTemplate): PromptTemplate
+    +withDefaults(Map<String, String>): PromptTemplate
+    +extractPlaceholders(): Set<String>
+  }
+  
+  class PromptEngineeringService {
+    -ChatClient chatClient
+    -AiProperties aiProperties
+    +executePrompt(PromptTemplate, Map, PromptTemplate, Map): String
+    +executePrompt(PromptTemplate, Map): String
+    +executePromptChain(List<PromptTemplate>, Map): String
+    +executePromptWithTemperature(PromptTemplate, Map, float): String
+    +executeParallelPrompts(List<PromptTemplate>, Map, Function): String
+  }
+  
+  class SystemPromptTemplates {
+    +{static} GENERAL_PURPOSE: PromptTemplate
+    +{static} CODE_GENERATION: PromptTemplate
+    +{static} DATA_ANALYSIS: PromptTemplate
+    +{static} SUMMARIZATION: PromptTemplate
+    +{static} QUESTION_ANSWERING: PromptTemplate
+  }
+  
+  PromptEngineeringService --> PromptTemplate : uses
+  PromptEngineeringService --> AiProperties : uses
+  SystemPromptTemplates --> PromptTemplate : creates
+}
+
+' RAG Module
+package "RAG Module" {
+  class Document {
+    -Long id
+    -String title
+    -String content
+    -String sourceUrl
+    -String documentType
+    -LocalDateTime createdAt
+    -LocalDateTime updatedAt
+    -String metadata
+    +getSummary(): String
+    +toDocumentInfo(): DocumentInfo
+    +getDocumentTypeOrDefault(): String
+    +getSourceUrlOptional(): Optional<String>
+  }
+  
+  class DocumentChunk {
+    -Long id
+    -Document document
+    -String content
+    -Integer chunkIndex
+    -float[] embeddingVector
+    +getSummary(): String
+    +toChunkInfo(): ChunkInfo
+    +getEmbeddingNorm(): double
+    +cosineSimilarity(float[]): double
+    +getDocumentTitleSafe(): String
+    +getDocumentOptional(): Optional<Document>
+  }
+  
+  interface DocumentRepository {
+    +findBySourceUrl(String): Optional<Document>
+    +findByTitleContainingIgnoreCase(String): List<Document>
+  }
+  
+  interface DocumentChunkRepository {
+    +findByDocument(Document): List<DocumentChunk>
+    +findSimilarChunksWithThreshold(float[], float, int): List<DocumentChunk>
+  }
+  
+  class DocumentService {
+    -DocumentRepository documentRepository
+    -DocumentChunkRepository documentChunkRepository
+    -EmbeddingClient embeddingClient
+    -AiProperties aiProperties
+    +getAllDocuments(): List<Document>
+    +createDocument(String, String, String, String): Document
+    +getDocumentById(Long): Optional<Document>
+    +documentExists(Long): boolean
+    +searchDocumentsByTitle(String): List<Document>
+    +updateDocument(Long, String, String, String, String): Document
+    +deleteDocument(Long): void
+    -splitAndEmbedDocument(Document): List<DocumentChunk>
+  }
+  
+  class RagService {
+    -DocumentChunkRepository documentChunkRepository
+    -EmbeddingClient embeddingClient
+    -ChatClient chatClient
+    -AiProperties aiProperties
+    +answerQuestion(String): String
+    +answerQuestionWithParams(String, int, float): String
+    -generateAnswerFromChunks(List<DocumentChunk>, String): String
+    -buildContext(List<DocumentChunk>): String
+  }
+  
+  Document --> "1" DocumentInfo : creates
+  DocumentChunk --> "1" ChunkInfo : creates
+  DocumentChunk --> "1" Document : references
+  DocumentService --> DocumentRepository : uses
+  DocumentService --> DocumentChunkRepository : uses
+  DocumentService --> EmbeddingClient : uses
+  DocumentService --> AiProperties : uses
+  RagService --> DocumentChunkRepository : uses
+  RagService --> EmbeddingClient : uses
+  RagService --> ChatClient : uses
+  RagService --> AiProperties : uses
+}
+
+' Vector DB Module
+package "Vector DB Module" {
+  class VectorStoreService {
+    -JdbcTemplate jdbcTemplate
+    -EmbeddingClient embeddingClient
+    -AiProperties aiProperties
+    +createVectorStore(): VectorStore
+    +addDocuments(List<Document>): void
+    +search(String, int): List<Document>
+    +search(String, Map<String, Object>, int): List<Document>
+    +deleteDocuments(List<String>): void
+    -executeSearch(Supplier<SearchRequest>, String): List<Document>
+  }
+  
+  class VectorDbConfig {
+    +dataSource(): DataSource
+    +jdbcTemplate(DataSource): JdbcTemplate
+  }
+  
+  VectorStoreService --> EmbeddingClient : uses
+  VectorStoreService --> AiProperties : uses
+}
+
+' MCP Module
+package "MCP Module" {
+  class McpTool {
+    -String name
+    -String description
+    -Map<String, ParameterInfo> parameters
+    -boolean required
+  }
+  
+  class McpService {
+    -OpenAiChatClient chatClient
+    -Map<String, McpToolExecutor> toolExecutors
+    +registerTool(McpTool, McpToolExecutor): void
+    +unregisterTool(String): boolean
+    +getRegisteredToolNames(): List<String>
+    +isToolRegistered(String): boolean
+    +executeWithTools(String, String, List<McpTool>): String
+    -convertToToolDefinitions(List<McpTool>): List<Map<String, Object>>
+  }
+  
+  class WeatherTool {
+    -McpService mcpService
+    -Random random
+    +register(): void
+    -executeWeatherTool(Map<String, Object>): String
+  }
+  
+  class TextAnalyzerTool {
+    -McpService mcpService
+    +register(): void
+    -executeTextAnalyzerTool(Map<String, Object>): String
+    -analyzeStatistics(String): String
+    -analyzeSentiment(String): String
+    -extractEntities(String): String
+    -generateSummary(String): String
+  }
+  
+  class FileAnalyzerTool {
+    -McpService mcpService
+    +register(): void
+    -executeFileAnalyzerTool(Map<String, Object>): String
+    -analyzeFileInfo(Path): String
+    -analyzeDirectoryStructure(Path, int): String
+    -analyzeFileContent(Path): String
+    -detectFileType(Path, String): String
+    -analyzeFileStats(Path): String
+  }
+  
+  WeatherTool --> McpService : uses
+  TextAnalyzerTool --> McpService : uses
+  FileAnalyzerTool --> McpService : uses
+  McpService --> McpTool : manages
+}
+
+' Service Module
+package "Service Module" {
+  class ChatService {
+    -ChatClient chatClient
+    -RagService ragService
+    -PromptEngineeringService promptEngineeringService
+    -McpService mcpService
+    -McpToolService mcpToolService
+    -AiProperties aiProperties
+    +generateChatResponse(String, String): String
+    +generateRagResponse(String): String
+    +generateTemplatedResponse(String, Map<String, String>): String
+    +generateToolAugmentedResponse(String, String, List<String>): String
+  }
+  
+  class McpToolService {
+    -McpService mcpService
+    +getAvailableTools(): List<McpTool>
+    +getToolByName(String): McpTool
+    +executeTool(String, Map<String, Object>): String
+    -createToolFromName(String): Optional<McpTool>
+    -createWeatherTool(): McpTool
+    -createTextAnalyzerTool(): McpTool
+    -createFileAnalyzerTool(): McpTool
+  }
+  
+  ChatService --> ChatClient : uses
+  ChatService --> RagService : uses
+  ChatService --> PromptEngineeringService : uses
+  ChatService --> McpService : uses
+  ChatService --> McpToolService : uses
+  ChatService --> AiProperties : uses
+  McpToolService --> McpService : uses
+}
+
+' API Module
+package "API Module" {
+  class ChatController {
+    -ChatService chatService
+    +chatCompletion(ChatRequest): ResponseEntity<ChatResponse>
+    +ragChatCompletion(ChatRequest): ResponseEntity<ChatResponse>
+    +templateChatCompletion(String, Map<String, String>): ResponseEntity<ChatResponse>
+    +toolChatCompletion(ChatRequest, List<String>): ResponseEntity<ChatResponse>
+    +batchChatCompletion(List<ChatRequest>): ResponseEntity<List<ChatResponse>>
+  }
+  
+  class DocumentController {
+    -DocumentService documentService
+    +getAllDocuments(): ResponseEntity<List<DocumentResponse>>
+    +createDocument(DocumentRequest): ResponseEntity<DocumentResponse>
+    +getDocument(Long): ResponseEntity<DocumentResponse>
+    +searchDocuments(String): ResponseEntity<List<DocumentResponse>>
+    +deleteDocument(Long): ResponseEntity<Void>
+    -mapToResponse(Document): DocumentResponse
+  }
+  
+  record ChatRequest {
+    -String prompt
+    -String systemPrompt
+    +isValid(): boolean
+    +getSummary(): String
+    +withPrompt(String): ChatRequest
+    +withSystemPrompt(String): ChatRequest
+  }
+  
+  record ChatResponse {
+    -String response
+    -LocalDateTime timestamp
+    +ChatResponse(String)
+    +getSummary(): String
+    +getTruncatedResponse(int): String
+  }
+  
+  record DocumentRequest {
+    -String title
+    -String content
+    -String sourceUrl
+    -String documentType
+    +isValid(): boolean
+    +getSummary(): String
+    +withTitle(String): DocumentRequest
+    +withContent(String): DocumentRequest
+  }
+  
+  record DocumentResponse {
+    -Long id
+    -String title
+    -String content
+    -String sourceUrl
+    -String documentType
+    -LocalDateTime createdAt
+    -LocalDateTime updatedAt
+    +getSummary(): String
+    +getTruncatedContent(int): String
+    +getAgeInDays(): long
+    +isRecent(): boolean
+  }
+  
+  class ApiExceptionHandler {
+    +handleValidationExceptions(MethodArgumentNotValidException): ResponseEntity<Object>
+    +handleResponseStatusException(ResponseStatusException): ResponseEntity<Object>
+    +handleGenericException(Exception): ResponseEntity<Object>
+  }
+  
+  ChatController --> ChatService : uses
+  DocumentController --> DocumentService : uses
+  ChatController --> ChatRequest : processes
+  ChatController --> ChatResponse : creates
+  DocumentController --> DocumentRequest : processes
+  DocumentController --> DocumentResponse : creates
+}
+
+' Demo Module
+package "Demo Module" {
+  class DemoController {
+    -ChatService chatService
+    -DocumentService documentService
+    +home(Model): String
+    +chat(Model): String
+    +documents(Model): String
+    +rag(Model): String
+  }
+  
+  class DemoApplication {
+    +main(String[]): void
+  }
+  
+  DemoController --> ChatService : uses
+  DemoController --> DocumentService : uses
+  DemoApplication --> DemoController : creates
+}
+
+' Cross-module relationships
+ChatService --> RagService : uses
+DocumentController --> DocumentService : uses
+RagService --> DocumentChunkRepository : uses
+VectorStoreService --> AiProperties : uses
+McpToolService --> McpService : uses
+
+@enduml

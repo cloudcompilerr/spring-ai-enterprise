@@ -1,0 +1,66 @@
+@startuml High-Level Design
+!theme plain
+skinparam linetype ortho
+skinparam componentStyle rectangle
+skinparam backgroundColor white
+skinparam ArrowColor black
+skinparam ComponentBorderColor black
+skinparam ComponentBackgroundColor #f5f5f5
+skinparam NoteBorderColor gray
+skinparam NoteBackgroundColor #fffff0
+
+title Spring AI Enterprise - High-Level Design
+
+' Define components
+component "Web UI\n(Demo Module)" as WebUI #d9edf7
+component "REST API\n(API Module)" as API #d9edf7
+component "Service Layer\n(Service Module)" as Service #dff0d8
+component "RAG System\n(RAG Module)" as RAG #dff0d8
+component "Vector Database\n(Vector-DB Module)" as VectorDB #dff0d8
+component "MCP Tools\n(MCP Module)" as MCP #dff0d8
+component "Prompt Engineering\n(Prompt-Engineering Module)" as PromptEng #dff0d8
+component "Core Configuration\n(Core Module)" as Core #dff0d8
+
+' External systems
+cloud "OpenAI API" as OpenAI #f5f5f5
+database "PostgreSQL\nwith pgvector" as Postgres #f5f5f5
+
+' Define relationships
+WebUI --> API : HTTP Requests
+API --> Service : Uses
+Service --> RAG : Uses
+Service --> MCP : Uses
+Service --> PromptEng : Uses
+RAG --> VectorDB : Uses
+RAG --> OpenAI : Embeddings & Completions
+VectorDB --> Postgres : Stores Vectors
+MCP --> OpenAI : Tool-augmented Completions
+PromptEng --> OpenAI : Prompt-based Completions
+Service --> Core : Configuration
+RAG --> Core : Configuration
+MCP --> Core : Configuration
+PromptEng --> Core : Configuration
+VectorDB --> Core : Configuration
+
+note right of OpenAI
+  Provides:
+  - Chat Completions
+  - Embeddings
+  - Tool-augmented Completions
+end note
+
+note right of Postgres
+  Stores:
+  - Documents
+  - Document Chunks
+  - Vector Embeddings
+end note
+
+note bottom of Core
+  Provides:
+  - Configuration Properties
+  - Common Utilities
+  - Base Components
+end note
+
+@enduml
