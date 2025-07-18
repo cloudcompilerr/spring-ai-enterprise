@@ -1,5 +1,4 @@
-@startuml Low-Level Design
-!theme plain
+@startuml
 skinparam linetype ortho
 skinparam classAttributeIconSize 0
 skinparam backgroundColor white

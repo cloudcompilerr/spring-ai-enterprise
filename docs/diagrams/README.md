@@ -44,13 +44,15 @@ This diagram shows the major components of the Spring AI Enterprise system and h
 
 This diagram shows the detailed class structure of the system, including classes, interfaces, methods, attributes, and their relationships. It's useful for understanding the implementation details.
 
-### C4 Context Diagram (c4-context.puml)
+### C4 Context Diagram (c4-context-simple.puml)
 
 This diagram shows the Spring AI Enterprise system in context with its users and external systems. It's useful for understanding the system's place in the broader ecosystem.
 
-### C4 Container Diagram (c4-container.puml)
+### C4 Container Diagram (c4-container-simple.puml)
 
 This diagram shows the containers (applications, data stores) that make up the Spring AI Enterprise system and how they interact with each other and external systems. It's useful for understanding the system's internal structure at a high level.
+
+> Note: We've provided simplified versions of the C4 diagrams that don't require external includes, making them more compatible with different PlantUML viewers.
 
 ## Updating the Diagrams
 

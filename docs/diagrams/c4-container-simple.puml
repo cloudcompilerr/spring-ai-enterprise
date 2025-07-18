@@ -1,0 +1,47 @@
+@startuml
+' C4 Container Diagram - Simplified version without includes
+
+title Spring AI Enterprise - Container Diagram
+
+actor "User" as user
+
+rectangle "Spring AI Enterprise" {
+    rectangle "Web Application\n(Spring Boot, Thymeleaf)" as webApp
+    rectangle "API Application\n(Spring Boot, REST)" as apiApp
+    rectangle "Service Layer\n(Spring Boot)" as serviceLayer
+    rectangle "RAG System\n(Spring Boot)" as ragSystem
+    rectangle "Vector Database Integration\n(Spring Boot)" as vectorDb
+    rectangle "MCP Tools\n(Spring Boot)" as mcpTools
+    rectangle "Prompt Engineering\n(Spring Boot)" as promptEng
+    rectangle "Core Configuration\n(Spring Boot)" as coreConfig
+}
+
+cloud "OpenAI API" as openAI
+database "PostgreSQL with pgvector" as postgres
+
+user --> webApp : Uses (HTTP/HTML)
+webApp --> apiApp : Calls (HTTP/REST)
+apiApp --> serviceLayer : Uses (Java Method Calls)
+serviceLayer --> ragSystem : Uses
+serviceLayer --> mcpTools : Uses
+serviceLayer --> promptEng : Uses
+ragSystem --> vectorDb : Uses
+ragSystem --> openAI : Calls for embeddings and completions
+vectorDb --> postgres : Reads/Writes vectors
+mcpTools --> openAI : Calls for tool-augmented completions
+promptEng --> openAI : Calls for prompt-based completions
+ragSystem --> coreConfig : Uses
+mcpTools --> coreConfig : Uses
+promptEng --> coreConfig : Uses
+vectorDb --> coreConfig : Uses
+serviceLayer --> coreConfig : Uses
+
+legend right
+  Legend:
+  Person - A user of the system
+  Container - Applications or data stores
+  External System - External systems
+  Database - External databases
+endlegend
+
+@enduml

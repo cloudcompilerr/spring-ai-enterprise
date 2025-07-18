@@ -1,0 +1,23 @@
+@startuml
+' C4 Context Diagram - Simplified version without includes
+
+title Spring AI Enterprise - System Context Diagram
+
+actor "User" as user
+rectangle "Spring AI Enterprise" as springAiEnterprise
+cloud "OpenAI API" as openAI
+database "PostgreSQL with pgvector" as postgres
+
+user --> springAiEnterprise : Uses (HTTP/Web UI)
+springAiEnterprise --> openAI : Calls (HTTPS/REST)
+springAiEnterprise --> postgres : Reads/Writes (JDBC)
+
+legend right
+  Legend:
+  Person - A user of the system
+  System - The Spring AI Enterprise system
+  External System - External systems
+  Database - External databases
+endlegend
+
+@enduml

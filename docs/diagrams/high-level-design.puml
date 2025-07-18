@@ -1,5 +1,4 @@
-@startuml High-Level Design
-!theme plain
+@startuml
 skinparam linetype ortho
 skinparam componentStyle rectangle
 skinparam backgroundColor white

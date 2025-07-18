@@ -1,5 +1,4 @@
-@startuml Sequence Diagram
-!theme plain
+@startuml
 skinparam backgroundColor white
 skinparam sequenceArrowThickness 2
 skinparam participantBorderThickness 2
