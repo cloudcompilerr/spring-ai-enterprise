@@ -94,7 +94,7 @@ public class DemoController {
         try {
             log.info("Processing chat request: {}", prompt);
             ChatRequest request = new ChatRequest(prompt, systemPrompt);
-            String response = chatService.generateChatResponse(request.getPrompt(), request.getSystemPrompt());
+            String response = chatService.generateChatResponse(request.prompt(), request.systemPrompt());
             return ResponseEntity.ok(new ChatResponse(response));
         } catch (Exception e) {
             log.error("Error processing chat request", e);
@@ -113,7 +113,7 @@ public class DemoController {
         try {
             log.info("Processing RAG request: {}", prompt);
             ChatRequest request = new ChatRequest(prompt, null);
-            String response = chatService.generateRagResponse(request.getPrompt());
+            String response = chatService.generateRagResponse(request.prompt());
             return ResponseEntity.ok(new ChatResponse(response));
         } catch (Exception e) {
             log.error("Error processing RAG request", e);
@@ -139,8 +139,8 @@ public class DemoController {
             log.info("Processing tool-augmented chat request: {}", prompt);
             ChatRequest request = new ChatRequest(prompt, systemPrompt);
             String response = chatService.generateToolAugmentedResponse(
-                    request.getPrompt(), 
-                    request.getSystemPrompt(),
+                    request.prompt(), 
+                    request.systemPrompt(),
                     toolNames != null ? toolNames : List.of());
             
             return ResponseEntity.ok(new ChatResponse(response));

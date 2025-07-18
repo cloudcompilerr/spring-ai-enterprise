@@ -11,7 +11,7 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.PromptBuilder;
+
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -95,9 +95,7 @@ public class PromptEngineeringService {
         try {
             String formattedUserPrompt = template.format(userPromptVars);
             
-            Prompt prompt = PromptBuilder.builder()
-                    .user(formattedUserPrompt)
-                    .build();
+            Prompt prompt = new Prompt(List.of(new UserMessage(formattedUserPrompt)));
             
             log.debug("Executing prompt with user message only");
             ChatResponse response = chatClient.call(prompt);
@@ -171,9 +169,7 @@ public class PromptEngineeringService {
         try {
             String formattedPrompt = prompt.format(vars);
             
-            Prompt aiPrompt = PromptBuilder.builder()
-                    .user(formattedPrompt)
-                    .build();
+            Prompt aiPrompt = new Prompt(List.of(new UserMessage(formattedPrompt)));
             
             log.debug("Executing prompt with temperature {}", temperature);
             ChatResponse response = chatClient.call(aiPrompt);

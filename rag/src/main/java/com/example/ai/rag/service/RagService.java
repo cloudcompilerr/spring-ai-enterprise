@@ -72,7 +72,11 @@ public class RagService {
         
         try {
             log.debug("Creating embedding for question: {}", question);
-            float[] questionEmbedding = embeddingClient.embed(question).getEmbedding();
+            List<Double> embeddingList = embeddingClient.embed(question);
+            float[] questionEmbedding = new float[embeddingList.size()];
+            for (int i = 0; i < embeddingList.size(); i++) {
+                questionEmbedding[i] = embeddingList.get(i).floatValue();
+            }
             
             // Using Java 21 records for immutable configuration
             RagConfig ragConfig = aiProperties.getRag().asRagConfig();
@@ -183,7 +187,11 @@ public class RagService {
         
         try {
             log.debug("Creating embedding for question with custom params: {}", params.question());
-            float[] questionEmbedding = embeddingClient.embed(params.question()).getEmbedding();
+            List<Double> embeddingList = embeddingClient.embed(params.question());
+            float[] questionEmbedding = new float[embeddingList.size()];
+            for (int i = 0; i < embeddingList.size(); i++) {
+                questionEmbedding[i] = embeddingList.get(i).floatValue();
+            }
             
             log.debug("Retrieving relevant document chunks with topK={}, threshold={}", 
                     params.topK(), params.threshold());

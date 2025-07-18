@@ -105,8 +105,10 @@ class ChatControllerTest {
     @MethodSource("templateTestCases")
     @DisplayName("Should generate templated chat completion successfully")
     void shouldGenerateTemplatedChatCompletionSuccessfully(TemplateTestCase testCase) {
-        // Using Java 21 record pattern in method parameter
-        var (templateName, variables, expectedResponse) = testCase;
+        // Extract fields from the record
+        String templateName = testCase.templateName();
+        Map<String, String> variables = testCase.variables();
+        String expectedResponse = testCase.expectedResponse();
         
         // Given
         when(chatService.generateTemplatedResponse(eq(templateName), eq(variables)))

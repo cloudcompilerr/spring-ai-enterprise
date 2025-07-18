@@ -135,7 +135,11 @@ public class DocumentService {
         return chunkParams.stream()
                 .map(params -> {
                     String chunkContent = content.substring(params.startIndex(), params.endIndex());
-                    float[] embedding = embeddingClient.embed(chunkContent).getEmbedding();
+                    List<Double> embeddingList = embeddingClient.embed(chunkContent);
+                    float[] embedding = new float[embeddingList.size()];
+                    for (int i = 0; i < embeddingList.size(); i++) {
+                        embedding[i] = embeddingList.get(i).floatValue();
+                    }
                     
                     return DocumentChunk.builder()
                             .document(document)

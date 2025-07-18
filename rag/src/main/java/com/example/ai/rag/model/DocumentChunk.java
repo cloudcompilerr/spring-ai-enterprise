@@ -128,9 +128,11 @@ public class DocumentChunk {
             return 0.0;
         }
         
-        return Math.sqrt(Arrays.stream(embeddingVector)
-                .map(x -> x * x)
-                .sum());
+        double sum = 0.0;
+        for (float value : embeddingVector) {
+            sum += value * value;
+        }
+        return Math.sqrt(sum);
     }
     
     /**
@@ -153,9 +155,11 @@ public class DocumentChunk {
         }
         
         double norm1 = getEmbeddingNorm();
-        double norm2 = Math.sqrt(Arrays.stream(otherVector)
-                .map(x -> x * x)
-                .sum());
+        double sum2 = 0.0;
+        for (float value : otherVector) {
+            sum2 += value * value;
+        }
+        double norm2 = Math.sqrt(sum2);
         
         return dotProduct / (norm1 * norm2);
     }

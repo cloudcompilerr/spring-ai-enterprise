@@ -51,7 +51,8 @@ public class VectorStoreService {
     public void addDocuments(List<Document> documents) {
         // Using Java 21 pattern matching for instanceof with conditional binding
         if (documents instanceof List<Document> docs && !docs.isEmpty()) {
-            try (var vectorStore = createVectorStore()) {
+            try {
+                var vectorStore = createVectorStore();
                 vectorStore.add(docs);
                 log.info("Added {} documents to vector store", docs.size());
             } catch (Exception e) {
@@ -101,9 +102,8 @@ public class VectorStoreService {
         return executeSearch(() -> 
             SearchRequest.query(params.query())
                 .withTopK(params.topK())
-                .withSimilarityThreshold(0.7f)
-                .withFilterExpression(params.filters()),
-            "Found {} similar documents for query: " + params.query() + " with filters"
+                .withSimilarityThreshold(0.7f),
+            "Found {} similar documents for query: " + params.query()
         );
     }
     
@@ -116,7 +116,8 @@ public class VectorStoreService {
      * @return List of similar documents
      */
     private List<Document> executeSearch(Supplier<SearchRequest> requestSupplier, String logMessage) {
-        try (var vectorStore = createVectorStore()) {
+        try {
+            var vectorStore = createVectorStore();
             var results = vectorStore.similaritySearch(requestSupplier.get());
             log.info(logMessage, results.size());
             return results;
@@ -135,7 +136,8 @@ public class VectorStoreService {
     public void deleteDocuments(List<String> ids) {
         // Using Java 21 pattern matching for instanceof with conditional binding
         if (ids instanceof List<String> docIds && !docIds.isEmpty()) {
-            try (var vectorStore = createVectorStore()) {
+            try {
+                var vectorStore = createVectorStore();
                 vectorStore.delete(docIds);
                 log.info("Deleted {} documents from vector store", docIds.size());
             } catch (Exception e) {

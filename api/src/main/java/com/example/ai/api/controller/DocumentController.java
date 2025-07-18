@@ -138,17 +138,16 @@ public class DocumentController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDocument(@PathVariable Long id) {
         try {
-            // Using Java 21 pattern matching in switch expression
-            return switch (documentService.documentExists(id)) {
-                case true -> {
-                    documentService.deleteDocument(id);
-                    yield ResponseEntity.noContent().build();
-                }
-                case false -> throw new ResponseStatusException(
+            // Check if document exists before deletion
+            if (documentService.documentExists(id)) {
+                documentService.deleteDocument(id);
+                return ResponseEntity.noContent().build();
+            } else {
+                throw new ResponseStatusException(
                         HttpStatus.NOT_FOUND, 
                         "Document not found with ID: " + id
                 );
-            };
+            }
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {

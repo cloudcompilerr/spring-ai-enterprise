@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>com.example</groupId>
+        <groupId>com.cloudcompilerr</groupId>
         <artifactId>spring-ai-showcase</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
@@ -14,11 +14,11 @@
     
     <dependencies>
         <dependency>
-            <groupId>com.example</groupId>
+            <groupId>com.cloudcompilerr</groupId>
             <artifactId>core</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.example</groupId>
+            <groupId>com.cloudcompilerr</groupId>
             <artifactId>service</artifactId>
         </dependency>
         <dependency>
@@ -35,4 +35,16 @@
             <version>2.3.0</version>
         </dependency>
     </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

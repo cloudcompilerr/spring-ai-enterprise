@@ -19,7 +19,8 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 /**
  * Tests for the McpToolService class.
@@ -48,7 +49,8 @@ class McpToolServiceTest {
                 "analyze_file",
                 "unknown_tool"
         ));
-        when(mcpService.isToolRegistered(anyString())).thenReturn(true);
+        // We need to use lenient here because not all tools will be checked in the test
+        lenient().when(mcpService.isToolRegistered(anyString())).thenReturn(true);
 
         // When
         List<McpTool> tools = mcpToolService.getAvailableTools();
@@ -71,11 +73,16 @@ class McpToolServiceTest {
     @MethodSource("toolTestCases")
     @DisplayName("Should get tool by name based on registration status")
     void shouldGetToolByName(ToolTestCase testCase) {
-        // Using Java 21 record pattern in method parameter
-        var (toolName, isRegistered, shouldExist) = testCase;
+        // Extract fields from the record
+        String toolName = testCase.toolName();
+        boolean isRegistered = testCase.isRegistered();
+        boolean shouldExist = testCase.shouldExist();
         
         // Given
-        when(mcpService.isToolRegistered(toolName)).thenReturn(isRegistered);
+        // Only set up the mock if the toolName is not null
+        if (toolName != null) {
+            when(mcpService.isToolRegistered(toolName)).thenReturn(isRegistered);
+        }
 
         // When
         McpTool tool = mcpToolService.getToolByName(toolName);
@@ -108,15 +115,19 @@ class McpToolServiceTest {
         Map<String, Object> args = new HashMap<>();
         args.put("location", "San Francisco, CA");
         
+        // Create a spy of the service to avoid mocking its own methods
+        McpToolService serviceSpy = spy(mcpToolService);
+        
         when(mcpService.isToolRegistered(toolName)).thenReturn(true);
         when(mcpService.executeWithTools(anyString(), anyString(), anyList()))
                 .thenReturn("Weather in San Francisco: Sunny, 72°F");
-        when(mcpToolService.getToolByName(toolName)).thenReturn(
-            McpTool.builder().name(toolName).description("Get weather").build()
-        );
+        
+        // Use doReturn for the spy to avoid the actual method being called
+        McpTool weatherTool = McpTool.builder().name(toolName).description("Get weather").build();
+        doReturn(weatherTool).when(serviceSpy).getToolByName(toolName);
 
         // When
-        String result = mcpToolService.executeTool(toolName, args);
+        String result = serviceSpy.executeTool(toolName, args);
 
         // Then
         assertNotNull(result);
@@ -131,15 +142,19 @@ class McpToolServiceTest {
         Map<String, Object> args = new HashMap<>();
         args.put("location", "San Francisco, CA");
         
+        // Create a spy of the service to avoid mocking its own methods
+        McpToolService serviceSpy = spy(mcpToolService);
+        
         when(mcpService.isToolRegistered(toolName)).thenReturn(true);
         when(mcpService.executeWithTools(anyString(), anyString(), anyList()))
                 .thenThrow(new RuntimeException("Test exception"));
-        when(mcpToolService.getToolByName(toolName)).thenReturn(
-            McpTool.builder().name(toolName).description("Get weather").build()
-        );
+        
+        // Use doReturn for the spy to avoid the actual method being called
+        McpTool weatherTool = McpTool.builder().name(toolName).description("Get weather").build();
+        doReturn(weatherTool).when(serviceSpy).getToolByName(toolName);
 
         // When
-        String result = mcpToolService.executeTool(toolName, args);
+        String result = serviceSpy.executeTool(toolName, args);
 
         // Then
         assertNotNull(result);
@@ -153,16 +168,35 @@ class McpToolServiceTest {
     @MethodSource("invalidToolCases")
     @DisplayName("Should handle invalid tool execution requests")
     void shouldHandleInvalidToolExecutionRequests(InvalidToolCase testCase) {
-        // Using Java 21 record pattern in method parameter
-        var (toolName, args, expectedErrorPrefix) = testCase;
+        // Extract fields from the record
+        String toolName = testCase.toolName();
+        Map<String, Object> args = testCase.args();
+        String expectedErrorPrefix = testCase.expectedErrorPrefix();
+        
+        // Create a custom implementation for this test to avoid mocking issues
+        McpToolService customService = new McpToolService(mcpService) {
+            @Override
+            public McpTool getToolByName(String name) {
+                if (name != null && name.equals("get_current_weather") && 
+                    expectedErrorPrefix.contains("Tool arguments cannot be null")) {
+                    return McpTool.builder().name(name).description("Get weather").build();
+                }
+                return super.getToolByName(name);
+            }
+        };
         
         // Given
-        if (toolName != null) {
-            when(mcpService.isToolRegistered(toolName)).thenReturn(false);
+        // Set up different behaviors based on the test case
+        if (toolName == null || toolName.isEmpty()) {
+            // No need to set up anything for null/empty tool name
+        } else if (expectedErrorPrefix.contains("Tool not registered")) {
+            lenient().when(mcpService.isToolRegistered(toolName)).thenReturn(false);
+        } else if (expectedErrorPrefix.contains("Tool arguments cannot be null")) {
+            lenient().when(mcpService.isToolRegistered(toolName)).thenReturn(true);
         }
 
         // When
-        String result = mcpToolService.executeTool(toolName, args);
+        String result = customService.executeTool(toolName, args);
 
         // Then
         assertNotNull(result);

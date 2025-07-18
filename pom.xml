@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.5</version>
+        <version>3.2.12</version>
         <relativePath/>
     </parent>
     
@@ -29,14 +29,25 @@
     
     <properties>
         <java.version>21</java.version>
-        <spring-ai.version>1.0.0</spring-ai.version>
-        <spring-boot.version>3.2.5</spring-boot.version>
+        <spring-ai.version>0.8.1</spring-ai.version>
+        <spring-boot.version>3.2.12</spring-boot.version>
         <lombok.version>1.18.32</lombok.version>
-        <pgvector.version>0.2.1</pgvector.version>
+        <pgvector.version>0.1.4</pgvector.version>
         <jts.version>1.19.0</jts.version>
         <junit-jupiter.version>5.10.2</junit-jupiter.version>
         <mockito.version>5.10.0</mockito.version>
     </properties>
+    
+    <repositories>
+        <repository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
     
     <dependencyManagement>
         <dependencies>
@@ -132,6 +143,16 @@
     
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                    <release>21</release>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

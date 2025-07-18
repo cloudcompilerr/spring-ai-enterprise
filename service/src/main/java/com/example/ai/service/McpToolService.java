@@ -32,7 +32,7 @@ public class McpToolService {
      */
     public List<McpTool> getAvailableTools() {
         // Get registered tool names from McpService
-        var toolNames = mcpService.getRegisteredToolNames();
+        List<String> toolNames = mcpService.getRegisteredToolNames();
         
         // Using Java 21 enhanced Stream API features
         return toolNames.stream()
@@ -55,16 +55,17 @@ public class McpToolService {
             case "get_current_weather" -> Optional.of(createWeatherTool());
             case "analyze_text" -> Optional.of(createTextAnalyzerTool());
             case "analyze_file" -> Optional.of(createFileAnalyzerTool());
-            case var s when s != null && !s.isEmpty() -> {
-                log.warn("Unknown tool name: {}, creating generic tool", s);
-                yield Optional.of(McpTool.builder()
-                        .name(s)
-                        .description("Tool: " + s)
-                        .build());
-            }
             default -> {
-                log.warn("Invalid tool name: {}", name);
-                yield Optional.empty();
+                if (name != null && !name.isEmpty()) {
+                    log.warn("Unknown tool name: {}, creating generic tool", name);
+                    yield Optional.of(McpTool.builder()
+                            .name(name)
+                            .description("Tool: " + name)
+                            .build());
+                } else {
+                    log.warn("Null or empty tool name provided");
+                    yield Optional.empty();
+                }
             }
         };
     }
@@ -197,31 +198,29 @@ public class McpToolService {
         record ToolExecution(String name, Map<String, Object> args) {}
         
         // Using Java 21 record patterns and pattern matching
-        var execution = new ToolExecution(name, arguments);
+        ToolExecution execution = new ToolExecution(name, arguments);
         
         try {
-            // Using Java 21 pattern matching in switch
-            return switch (execution) {
-                case ToolExecution(var toolName, var args) when toolName == null || toolName.isEmpty() ->
-                    "Error: Tool name cannot be empty";
-                    
-                case ToolExecution(var toolName, var args) when !mcpService.isToolRegistered(toolName) ->
-                    "Error: Tool not registered: " + toolName;
-                    
-                case ToolExecution(var toolName, var args) when args == null ->
-                    "Error: Tool arguments cannot be null";
-                    
-                case ToolExecution(var toolName, var args) ->
-                    mcpService.executeWithTools(
-                        "Execute the " + toolName + " tool with these arguments: " + args,
-                        "You are a helpful assistant with access to tools. Use the provided tool to fulfill the request.",
-                        List.of(getToolByName(toolName))
-                    );
-            };
+                // Simplified version without pattern matching
+            String toolName = execution.name();
+            Map<String, Object> args = execution.args();
+            
+            if (toolName == null || toolName.isEmpty()) {
+                return "Error: Tool name cannot be empty";
+            } else if (!mcpService.isToolRegistered(toolName)) {
+                return "Error: Tool not registered: " + toolName;
+            } else if (args == null) {
+                return "Error: Tool arguments cannot be null";
+            } else {
+                return mcpService.executeWithTools(
+                    "Execute the " + toolName + " tool with these arguments: " + args,
+                    "You are a helpful assistant with access to tools. Use the provided tool to fulfill the request.",
+                    List.of(getToolByName(toolName))
+                );
+            }
         } catch (Exception e) {
             log.error("Error executing tool: {}", name, e);
             return "Error executing tool: " + e.getMessage();
         }
     }
-}
 }

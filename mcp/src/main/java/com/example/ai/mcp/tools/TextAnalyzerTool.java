@@ -7,9 +7,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -116,13 +118,17 @@ public class TextAnalyzerTool {
         var charCount = text.length();
         var charCountNoSpaces = text.replaceAll("\\s+", "").length();
         
-        // Using Java 21 pattern matching for switch with guards
-        var complexity = switch (wordCount) {
-            case var w when w < 50 -> "Simple";
-            case var w when w < 200 -> "Moderate";
-            case var w when w < 500 -> "Complex";
-            default -> "Very Complex";
-        };
+        // Determine complexity based on word count
+        String complexity;
+        if (wordCount < 50) {
+            complexity = "Simple";
+        } else if (wordCount < 200) {
+            complexity = "Moderate";
+        } else if (wordCount < 500) {
+            complexity = "Complex";
+        } else {
+            complexity = "Very Complex";
+        }
         
         // Using Java 21 streams with enhanced features
         var sentences = SENTENCE_PATTERN.split(text);
@@ -203,14 +209,20 @@ public class TextAnalyzerTool {
         // Normalize score
         double finalScore = matchCount > 0 ? sentimentScore / matchCount : 0;
         
-        // Using Java 21 switch expressions with pattern matching
-        String sentiment = switch ((int) Math.round(finalScore * 10)) {
-            case var s when s < -7 -> "Very Negative";
-            case var s when s < -3 -> "Negative";
-            case var s when s < 3 -> "Neutral";
-            case var s when s < 7 -> "Positive";
-            default -> "Very Positive";
-        };
+        // Determine sentiment based on score
+        String sentiment;
+        int scoreInt = (int) Math.round(finalScore * 10);
+        if (scoreInt < -7) {
+            sentiment = "Very Negative";
+        } else if (scoreInt < -3) {
+            sentiment = "Negative";
+        } else if (scoreInt < 3) {
+            sentiment = "Neutral";
+        } else if (scoreInt < 7) {
+            sentiment = "Positive";
+        } else {
+            sentiment = "Very Positive";
+        }
         
         return """
                Sentiment Analysis:
@@ -234,53 +246,33 @@ public class TextAnalyzerTool {
         // Simple entity extraction using regex patterns
         // In a real implementation, this would use NLP models
         
-        // Using Java 21 sealed interfaces and pattern matching
-        sealed interface Entity permits PersonEntity, OrganizationEntity, LocationEntity {}
-        record PersonEntity(String name) implements Entity {}
-        record OrganizationEntity(String name) implements Entity {}
-        record LocationEntity(String name) implements Entity {}
+        // Simple entity extraction using basic patterns
+        // Using records for entity representation
         
         // Simple patterns for demonstration
-        var personPattern = Pattern.compile("\\b[A-Z][a-z]+ [A-Z][a-z]+\\b");
-        var orgPattern = Pattern.compile("\\b[A-Z][a-z]* (Inc|Corp|LLC|Company|Organization)\\b");
-        var locationPattern = Pattern.compile("\\b(New York|London|Paris|Tokyo|Berlin|Sydney)\\b");
+        Pattern personPattern = Pattern.compile("\\b[A-Z][a-z]+ [A-Z][a-z]+\\b");
+        Pattern orgPattern = Pattern.compile("\\b[A-Z][a-z]* (Inc|Corp|LLC|Company|Organization)\\b");
+        Pattern locationPattern = Pattern.compile("\\b(New York|London|Paris|Tokyo|Berlin|Sydney)\\b");
         
-        var personMatcher = personPattern.matcher(text);
-        var orgMatcher = orgPattern.matcher(text);
-        var locationMatcher = locationPattern.matcher(text);
+        Matcher personMatcher = personPattern.matcher(text);
+        Matcher orgMatcher = orgPattern.matcher(text);
+        Matcher locationMatcher = locationPattern.matcher(text);
         
-        var entities = new java.util.ArrayList<Entity>();
+        List<String> persons = new ArrayList<>();
+        List<String> organizations = new ArrayList<>();
+        List<String> locations = new ArrayList<>();
         
         while (personMatcher.find()) {
-            entities.add(new PersonEntity(personMatcher.group()));
+            persons.add(personMatcher.group());
         }
         
         while (orgMatcher.find()) {
-            entities.add(new OrganizationEntity(orgMatcher.group()));
+            organizations.add(orgMatcher.group());
         }
         
         while (locationMatcher.find()) {
-            entities.add(new LocationEntity(locationMatcher.group()));
+            locations.add(locationMatcher.group());
         }
-        
-        // Using Java 21 pattern matching in instanceof with record patterns
-        var persons = entities.stream()
-                .filter(e -> e instanceof PersonEntity)
-                .map(e -> ((PersonEntity) e).name())
-                .distinct()
-                .collect(Collectors.toList());
-                
-        var organizations = entities.stream()
-                .filter(e -> e instanceof OrganizationEntity)
-                .map(e -> ((OrganizationEntity) e).name())
-                .distinct()
-                .collect(Collectors.toList());
-                
-        var locations = entities.stream()
-                .filter(e -> e instanceof LocationEntity)
-                .map(e -> ((LocationEntity) e).name())
-                .distinct()
-                .collect(Collectors.toList());
         
         return """
                Entity Extraction:
@@ -331,14 +323,20 @@ public class TextAnalyzerTool {
             else positionScore = 0.5;
             
             // Score based on length (not too short, not too long)
-            var words = sentence.split("\\s+");
-            double lengthScore = switch (words.length) {
-                case var l when l < 5 -> 0.3;
-                case var l when l < 10 -> 0.7;
-                case var l when l < 20 -> 1.0;
-                case var l when l < 30 -> 0.7;
-                default -> 0.4;
-            };
+            String[] words = sentence.split("\\s+");
+            double lengthScore;
+            int wordCount = words.length;
+            if (wordCount < 5) {
+                lengthScore = 0.3;
+            } else if (wordCount < 10) {
+                lengthScore = 0.7;
+            } else if (wordCount < 20) {
+                lengthScore = 1.0;
+            } else if (wordCount < 30) {
+                lengthScore = 0.7;
+            } else {
+                lengthScore = 0.4;
+            }
             
             // Combined score
             double score = (positionScore + lengthScore) / 2.0;
