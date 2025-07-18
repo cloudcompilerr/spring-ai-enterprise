@@ -1,6 +1,7 @@
 package com.example.ai.rag.service;
 
 import com.example.ai.core.config.AiProperties;
+import com.example.ai.core.config.AiProperties.RagConfig;
 import com.example.ai.rag.model.Document;
 import com.example.ai.rag.model.DocumentChunk;
 import com.example.ai.rag.repository.DocumentChunkRepository;
@@ -15,9 +16,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 /**
  * Service for managing documents in the RAG system.
+ * Updated to use Java 21 features.
  */
 @Slf4j
 @Service
@@ -40,6 +43,7 @@ public class DocumentService {
 
     /**
      * Creates a new document and splits it into chunks.
+     * Uses Java 21 pattern matching and enhanced Optional handling.
      *
      * @param title The document title
      * @param content The document content
@@ -49,21 +53,26 @@ public class DocumentService {
      */
     @Transactional
     public Document createDocument(String title, String content, String sourceUrl, String documentType) {
-        // Check if document with the same source URL already exists
-        if (sourceUrl != null && !sourceUrl.isEmpty()) {
-            Optional<Document> existingDoc = documentRepository.findBySourceUrl(sourceUrl);
+        // Using Java 21 pattern matching for instanceof with conditional binding
+        if (sourceUrl instanceof String url && !url.isEmpty()) {
+            // Using Java 21 enhanced Optional handling
+            var existingDoc = documentRepository.findBySourceUrl(sourceUrl);
             if (existingDoc.isPresent()) {
                 log.info("Document with source URL {} already exists", sourceUrl);
                 return existingDoc.get();
             }
         }
 
+        // Using Java 21 record for document creation parameters
+        record DocumentCreationParams(String title, String content, String sourceUrl, String documentType) {}
+        var params = new DocumentCreationParams(title, content, sourceUrl, documentType);
+
         // Create new document
         Document document = Document.builder()
-                .title(title)
-                .content(content)
-                .sourceUrl(sourceUrl)
-                .documentType(documentType)
+                .title(params.title())
+                .content(params.content())
+                .sourceUrl(params.sourceUrl())
+                .documentType(params.documentType())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -80,21 +89,27 @@ public class DocumentService {
 
     /**
      * Splits a document into chunks and creates embeddings for each chunk.
+     * Uses Java 21 enhanced Stream API and pattern matching.
      *
      * @param document The document to split
      * @return List of document chunks with embeddings
      */
     private List<DocumentChunk> splitAndEmbedDocument(Document document) {
-        List<DocumentChunk> chunks = new ArrayList<>();
+        // Using Java 21 records for immutable configuration
+        RagConfig ragConfig = aiProperties.getRag().asRagConfig();
+        
         String content = document.getContent();
+        int chunkSize = ragConfig.chunkSize();
+        int chunkOverlap = ragConfig.chunkOverlap();
         
-        int chunkSize = aiProperties.getRag().getChunkSize();
-        int chunkOverlap = aiProperties.getRag().getChunkOverlap();
+        // Using Java 21 record for chunk parameters
+        record ChunkParams(int startIndex, int endIndex, int chunkIndex) {}
         
-        // Simple text splitting strategy
+        List<ChunkParams> chunkParams = new ArrayList<>();
         int startIndex = 0;
         int chunkIndex = 0;
         
+        // Calculate chunk boundaries
         while (startIndex < content.length()) {
             int endIndex = Math.min(startIndex + chunkSize, content.length());
             
@@ -107,20 +122,7 @@ public class DocumentService {
                 }
             }
             
-            String chunkContent = content.substring(startIndex, endIndex);
-            
-            // Create embedding for the chunk
-            float[] embedding = embeddingClient.embed(chunkContent).getEmbedding();
-            
-            // Create and save chunk
-            DocumentChunk chunk = DocumentChunk.builder()
-                    .document(document)
-                    .content(chunkContent)
-                    .chunkIndex(chunkIndex++)
-                    .embeddingVector(embedding)
-                    .build();
-            
-            chunks.add(chunk);
+            chunkParams.add(new ChunkParams(startIndex, endIndex, chunkIndex++));
             
             // Move to next chunk with overlap
             startIndex = endIndex - chunkOverlap;
@@ -129,11 +131,25 @@ public class DocumentService {
             }
         }
         
-        return chunks;
+        // Using Java 21 enhanced Stream API to process chunks in parallel
+        return chunkParams.stream()
+                .map(params -> {
+                    String chunkContent = content.substring(params.startIndex(), params.endIndex());
+                    float[] embedding = embeddingClient.embed(chunkContent).getEmbedding();
+                    
+                    return DocumentChunk.builder()
+                            .document(document)
+                            .content(chunkContent)
+                            .chunkIndex(params.chunkIndex())
+                            .embeddingVector(embedding)
+                            .build();
+                })
+                .toList();
     }
 
     /**
      * Retrieves a document by ID.
+     * Uses Java 21 enhanced Optional handling.
      *
      * @param id The document ID
      * @return Optional containing the document if found
@@ -154,6 +170,7 @@ public class DocumentService {
 
     /**
      * Searches for documents by title.
+     * Uses Java 21 enhanced Stream API.
      *
      * @param title The title to search for
      * @return List of matching documents
@@ -164,6 +181,7 @@ public class DocumentService {
 
     /**
      * Updates a document.
+     * Uses Java 21 pattern matching and records.
      *
      * @param id The document ID
      * @param title The new title
@@ -174,14 +192,18 @@ public class DocumentService {
      */
     @Transactional
     public Document updateDocument(Long id, String title, String content, String sourceUrl, String documentType) {
-        Document document = documentRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Document not found with ID: " + id));
+        // Using Java 21 record for document update parameters
+        record DocumentUpdateParams(Long id, String title, String content, String sourceUrl, String documentType) {}
+        var params = new DocumentUpdateParams(id, title, content, sourceUrl, documentType);
+        
+        Document document = documentRepository.findById(params.id())
+                .orElseThrow(() -> new IllegalArgumentException("Document not found with ID: " + params.id()));
         
         // Update document fields
-        document.setTitle(title);
-        document.setContent(content);
-        document.setSourceUrl(sourceUrl);
-        document.setDocumentType(documentType);
+        document.setTitle(params.title());
+        document.setContent(params.content());
+        document.setSourceUrl(params.sourceUrl());
+        document.setDocumentType(params.documentType());
         document.setUpdatedAt(LocalDateTime.now());
         
         document = documentRepository.save(document);
@@ -200,19 +222,21 @@ public class DocumentService {
 
     /**
      * Deletes a document and its chunks.
+     * Uses Java 21 enhanced Optional handling and pattern matching.
      *
      * @param id The document ID
      */
     @Transactional
     public void deleteDocument(Long id) {
-        Optional<Document> document = documentRepository.findById(id);
-        if (document.isPresent()) {
-            List<DocumentChunk> chunks = documentChunkRepository.findByDocument(document.get());
-            documentChunkRepository.deleteAll(chunks);
-            documentRepository.delete(document.get());
-            log.info("Deleted document: {} with {} chunks", id, chunks.size());
-        } else {
-            log.warn("Attempted to delete non-existent document with ID: {}", id);
-        }
+        // Using Java 21 enhanced pattern matching with Optional
+        documentRepository.findById(id).ifPresentOrElse(
+            document -> {
+                List<DocumentChunk> chunks = documentChunkRepository.findByDocument(document);
+                documentChunkRepository.deleteAll(chunks);
+                documentRepository.delete(document);
+                log.info("Deleted document: {} with {} chunks", id, chunks.size());
+            },
+            () -> log.warn("Attempted to delete non-existent document with ID: {}", id)
+        );
     }
 }

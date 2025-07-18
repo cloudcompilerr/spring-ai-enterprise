@@ -1,51 +1,70 @@
 package com.example.ai.api.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 /**
  * DTO for document responses.
+ * Using Java 21 record for immutable data transfer.
  */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class DocumentResponse {
-
+public record DocumentResponse(
+    Long id,
+    String title,
+    String content,
+    String sourceUrl,
+    String documentType,
+    LocalDateTime createdAt,
+    LocalDateTime updatedAt
+) {
     /**
-     * The document ID.
+     * Returns a summary of the document.
+     * Uses Java 21 text blocks for better readability.
+     * 
+     * @return A summary of the document
      */
-    private Long id;
+    public String getSummary() {
+        return """
+               Document: %s (ID: %d)
+               Type: %s
+               Created: %s
+               Content Length: %d characters
+               """.formatted(
+                   title,
+                   id,
+                   documentType != null ? documentType : "Unknown",
+                   createdAt,
+                   content != null ? content.length() : 0
+               );
+    }
     
     /**
-     * The document title.
+     * Returns a truncated version of the content.
+     * 
+     * @param maxLength The maximum length
+     * @return The truncated content
      */
-    private String title;
+    public String getTruncatedContent(int maxLength) {
+        if (content == null || content.length() <= maxLength) {
+            return content;
+        }
+        return content.substring(0, maxLength) + "...";
+    }
     
     /**
-     * The document content.
+     * Returns the age of the document in days.
+     * 
+     * @return The age in days
      */
-    private String content;
+    public long getAgeInDays() {
+        return ChronoUnit.DAYS.between(createdAt, LocalDateTime.now());
+    }
     
     /**
-     * The source URL of the document.
+     * Returns whether the document is recent (less than 30 days old).
+     * 
+     * @return True if the document is recent
      */
-    private String sourceUrl;
-    
-    /**
-     * The type of document.
-     */
-    private String documentType;
-    
-    /**
-     * The creation timestamp.
-     */
-    private LocalDateTime createdAt;
-    
-    /**
-     * The last update timestamp.
-     */
-    private LocalDateTime updatedAt;
+    public boolean isRecent() {
+        return getAgeInDays() < 30;
+    }
 }

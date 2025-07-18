@@ -37,8 +37,8 @@ The application is organized into the following modules:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/spring-ai-showcase.git
-   cd spring-ai-showcase
+   git clone https://github.com/yourusername/spring-ai-enterprise.git
+   cd spring-ai-enterprise
    ```
 
 2. Set up the PostgreSQL database:
