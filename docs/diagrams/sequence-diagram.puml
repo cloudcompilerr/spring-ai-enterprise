@@ -1,0 +1,85 @@
+@startuml Sequence Diagram
+!theme plain
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam participantBorderThickness 2
+skinparam boxBorderThickness 2
+
+title Spring AI Enterprise - RAG Flow Sequence Diagram
+
+actor User
+participant "Web UI\n(Demo Module)" as WebUI
+participant "REST API\n(API Module)" as API
+participant "Chat Service\n(Service Module)" as ChatService
+participant "RAG Service\n(RAG Module)" as RAGService
+participant "Document Service\n(RAG Module)" as DocService
+participant "Vector Store Service\n(Vector-DB Module)" as VectorService
+database "PostgreSQL\nwith pgvector" as Postgres
+participant "OpenAI API" as OpenAI
+
+== Document Ingestion Flow ==
+
+User -> WebUI: Upload Document
+WebUI -> API: POST /api/documents
+API -> DocService: createDocument(title, content, sourceUrl, documentType)
+DocService -> DocService: Create Document Entity
+DocService -> Postgres: Save Document
+DocService -> DocService: Split Document into Chunks
+loop For Each Chunk
+    DocService -> OpenAI: Generate Embedding
+    OpenAI --> DocService: Return Embedding Vector
+    DocService -> DocService: Create DocumentChunk with Embedding
+    DocService -> Postgres: Save DocumentChunk
+end
+DocService --> API: Return Document
+API --> WebUI: Return Document Response
+WebUI --> User: Show Success Message
+
+== RAG Query Flow ==
+
+User -> WebUI: Ask Question
+WebUI -> API: POST /api/chat/rag
+API -> ChatService: generateRagResponse(question)
+ChatService -> RAGService: answerQuestion(question)
+RAGService -> OpenAI: Generate Question Embedding
+OpenAI --> RAGService: Return Question Embedding
+RAGService -> VectorService: Search Similar Chunks
+VectorService -> Postgres: Vector Similarity Search
+Postgres --> VectorService: Return Relevant Chunks
+VectorService --> RAGService: Return Relevant Documents
+RAGService -> RAGService: Build Context from Chunks
+RAGService -> OpenAI: Generate Answer with Context
+OpenAI --> RAGService: Return Generated Answer
+RAGService --> ChatService: Return Answer
+ChatService --> API: Return Response
+API --> WebUI: Return Chat Response
+WebUI --> User: Display Answer
+
+== Tool-Augmented Chat Flow ==
+
+User -> WebUI: Ask Tool-Based Question
+WebUI -> API: POST /api/chat/tools
+API -> ChatService: generateToolAugmentedResponse(question, systemPrompt, toolNames)
+ChatService -> ChatService: Get Tools by Name
+ChatService -> McpService: executeWithTools(prompt, systemPrompt, tools)
+McpService -> OpenAI: Send Prompt with Tool Definitions
+OpenAI --> McpService: Return Tool Call Request
+McpService -> McpService: Execute Tool Function
+alt Weather Tool
+    McpService -> WeatherTool: executeWeatherTool(args)
+    WeatherTool --> McpService: Return Weather Data
+else Text Analyzer Tool
+    McpService -> TextAnalyzerTool: executeTextAnalyzerTool(args)
+    TextAnalyzerTool --> McpService: Return Analysis
+else File Analyzer Tool
+    McpService -> FileAnalyzerTool: executeFileAnalyzerTool(args)
+    FileAnalyzerTool --> McpService: Return File Analysis
+end
+McpService -> OpenAI: Send Tool Result
+OpenAI --> McpService: Return Final Response
+McpService --> ChatService: Return Response
+ChatService --> API: Return Response
+API --> WebUI: Return Chat Response
+WebUI --> User: Display Answer
+
+@enduml
