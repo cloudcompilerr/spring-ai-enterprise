@@ -33,6 +33,11 @@ spring:
     encoding: UTF-8
     prefix: classpath:/templates/
     suffix: .html
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+      enabled: true
       
 server:
   port: 8080
@@ -71,9 +76,12 @@ springdoc:
 logging:
   level:
     root: INFO
-    com.example.ai: DEBUG
+    com.cloudcompilerr.ai: DEBUG
     org.springframework.ai: INFO
     org.springframework.web: INFO
     org.hibernate: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

@@ -32,11 +32,28 @@ CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at);
 CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(document_type);
 CREATE INDEX IF NOT EXISTS idx_document_chunks_document_id ON document_chunks(document_id);
 
--- Create index for vector similarity search (only if we have data)
--- This will be created automatically when first vectors are inserted
--- CREATE INDEX IF NOT EXISTS document_chunks_embedding_idx 
--- ON document_chunks USING ivfflat (embedding_vector vector_cosine_ops) 
--- WITH (lists = 100);
+-- Create index for vector similarity search
+-- Note: ivfflat index will be created after we have some data
+-- For now, we'll use a basic index that can be upgraded later
+CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding ON document_chunks USING gin (embedding_vector);
+
+-- Function to create ivfflat index when we have enough data (>1000 rows)
+CREATE OR REPLACE FUNCTION create_ivfflat_index_if_needed() 
+RETURNS void AS $$
+DECLARE
+    row_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO row_count FROM document_chunks WHERE embedding_vector IS NOT NULL;
+    
+    IF row_count > 1000 THEN
+        -- Drop the gin index and create ivfflat
+        DROP INDEX IF EXISTS idx_document_chunks_embedding;
+        CREATE INDEX IF NOT EXISTS document_chunks_embedding_idx 
+        ON document_chunks USING ivfflat (embedding_vector vector_cosine_ops) 
+        WITH (lists = 100);
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
 
 -- Grant permissions
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres;

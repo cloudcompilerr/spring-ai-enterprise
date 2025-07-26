@@ -16,7 +16,9 @@ services:
       - SPRING_DATASOURCE_PASSWORD=postgres
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - LOGGING_LEVEL_ROOT=INFO
-      - LOGGING_LEVEL_COM_EXAMPLE_AI=DEBUG
+      - LOGGING_LEVEL_COM_CLOUDCOMPILERR_AI=DEBUG
+      - JAVA_OPTS=-Xmx1g -Xms512m
+      - JAVA_OPTS=-Xmx2g -Xms1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200
     volumes:
       - ./data:/app/data
     depends_on:
