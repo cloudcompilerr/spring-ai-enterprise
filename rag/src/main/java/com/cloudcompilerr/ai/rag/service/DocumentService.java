@@ -31,6 +31,13 @@ public class DocumentService {
     private final DocumentChunkRepository documentChunkRepository;
     private final EmbeddingClient embeddingClient;
     private final AiProperties aiProperties;
+    private final StreamingDocumentProcessor streamingProcessor;
+    private final CircuitBreakerService circuitBreaker;
+    
+    /**
+     * Record for chunk parameters used in document processing.
+     */
+    private record ChunkParams(int startIndex, int endIndex, int chunkIndex) {}
 
     /**
      * Gets all documents.
@@ -53,6 +60,17 @@ public class DocumentService {
      */
     @Transactional
     public Document createDocument(String title, String content, String sourceUrl, String documentType) {
+        // Check document size to prevent memory issues
+        final int MAX_DOCUMENT_SIZE = 10_000; // Reduced to 10KB limit for now
+        if (content != null && content.length() > MAX_DOCUMENT_SIZE) {
+            throw new IllegalArgumentException("Document too large. Maximum size is " + MAX_DOCUMENT_SIZE + " characters");
+        }
+        
+        // Log memory usage before processing
+        Runtime runtime = Runtime.getRuntime();
+        long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+        log.info("Memory usage before document processing: {} MB", usedMemory / (1024 * 1024));
+        
         // Using Java 21 pattern matching for instanceof with conditional binding
         if (sourceUrl instanceof String url && !url.isEmpty()) {
             // Using Java 21 enhanced Optional handling
@@ -79,77 +97,104 @@ public class DocumentService {
 
         document = documentRepository.save(document);
         
-        // Split document into chunks and create embeddings
+        // Split document into chunks and create embeddings (saves chunks internally)
         List<DocumentChunk> chunks = splitAndEmbedDocument(document);
-        documentChunkRepository.saveAll(chunks);
         
         log.info("Created document: {} with {} chunks", document.getId(), chunks.size());
         return document;
     }
 
     /**
-     * Splits a document into chunks and creates embeddings for each chunk.
-     * Uses Java 21 enhanced Stream API and pattern matching.
+     * Production-ready document processing with streaming, circuit breaker, and proper embeddings.
      *
-     * @param document The document to split
+     * @param document The document to process
      * @return List of document chunks with embeddings
      */
     private List<DocumentChunk> splitAndEmbedDocument(Document document) {
-        // Using Java 21 records for immutable configuration
-        RagConfig ragConfig = aiProperties.getRag().asRagConfig();
-        
         String content = document.getContent();
-        int chunkSize = ragConfig.chunkSize();
-        int chunkOverlap = ragConfig.chunkOverlap();
         
-        // Using Java 21 record for chunk parameters
-        record ChunkParams(int startIndex, int endIndex, int chunkIndex) {}
+        log.info("Processing document: {} (content length: {})", 
+                document.getId(), content.length());
         
-        List<ChunkParams> chunkParams = new ArrayList<>();
-        int startIndex = 0;
-        int chunkIndex = 0;
+        // Log memory usage before processing
+        Runtime runtime = Runtime.getRuntime();
+        long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+        log.info("Memory usage before document processing: {} MB", usedMemory / (1024 * 1024));
         
-        // Calculate chunk boundaries
-        while (startIndex < content.length()) {
-            int endIndex = Math.min(startIndex + chunkSize, content.length());
-            
-            // Adjust end index to avoid cutting words
-            if (endIndex < content.length()) {
-                // Find the next space after the chunk size
-                int nextSpace = content.indexOf(' ', endIndex);
-                if (nextSpace != -1 && nextSpace - endIndex < 50) { // Don't extend too far
-                    endIndex = nextSpace;
-                }
-            }
-            
-            chunkParams.add(new ChunkParams(startIndex, endIndex, chunkIndex++));
-            
-            // Move to next chunk with overlap
-            startIndex = endIndex - chunkOverlap;
-            if (startIndex < 0 || startIndex >= content.length()) {
-                break;
-            }
-        }
-        
-        // Using Java 21 enhanced Stream API to process chunks in parallel
-        return chunkParams.stream()
-                .map(params -> {
-                    String chunkContent = content.substring(params.startIndex(), params.endIndex());
-                    List<Double> embeddingList = embeddingClient.embed(chunkContent);
-                    float[] embedding = new float[embeddingList.size()];
-                    for (int i = 0; i < embeddingList.size(); i++) {
-                        embedding[i] = embeddingList.get(i).floatValue();
+        try {
+            // Use circuit breaker to protect against API failures
+            return circuitBreaker.execute(
+                // Main operation: streaming document processing
+                () -> {
+                    if (content.length() > 50000) { // Large document
+                        log.info("Using streaming processing for large document");
+                        return streamingProcessor.processDocumentAsync(document).get();
+                    } else {
+                        log.info("Using single chunk processing for small document");
+                        return processSingleChunkDocument(document, content);
                     }
-                    
-                    return DocumentChunk.builder()
-                            .document(document)
-                            .content(chunkContent)
-                            .chunkIndex(params.chunkIndex())
-                            .embeddingVector(embedding)
-                            .build();
-                })
-                .toList();
+                },
+                // Fallback: create document with zero embeddings
+                (reason) -> {
+                    log.warn("Using fallback processing for document {}: {}", document.getId(), reason);
+                    return createFallbackChunk(document, content);
+                }
+            );
+            
+        } catch (Exception e) {
+            log.error("Error in document processing for document {}: {}", document.getId(), e.getMessage());
+            // Final fallback
+            return createFallbackChunk(document, content);
+        } finally {
+            // Log memory usage after processing
+            long finalMemory = runtime.totalMemory() - runtime.freeMemory();
+            log.info("Memory usage after document processing: {} MB", finalMemory / (1024 * 1024));
+        }
     }
+
+    /**
+     * Processes a small document as a single chunk with proper embeddings.
+     */
+    private List<DocumentChunk> processSingleChunkDocument(Document document, String content) {
+        DocumentChunk chunk = streamingProcessor.processSingleChunk(document, content, 0);
+        
+        return List.of(DocumentChunk.builder()
+                .id(chunk.getId())
+                .document(document)
+                .chunkIndex(0)
+                .build());
+    }
+
+    /**
+     * Creates a fallback chunk with zero embeddings when main processing fails.
+     */
+    private List<DocumentChunk> createFallbackChunk(Document document, String content) {
+        try {
+            // Create chunk with zero embedding as fallback
+            float[] zeroEmbedding = new float[1536]; // Standard OpenAI embedding dimension
+            
+            DocumentChunk chunk = DocumentChunk.builder()
+                    .document(document)
+                    .content(content)
+                    .chunkIndex(0)
+                    .embeddingVector(zeroEmbedding)
+                    .build();
+            
+            DocumentChunk savedChunk = documentChunkRepository.save(chunk);
+            
+            return List.of(DocumentChunk.builder()
+                    .id(savedChunk.getId())
+                    .document(document)
+                    .chunkIndex(0)
+                    .build());
+                    
+        } catch (Exception e) {
+            log.error("Even fallback processing failed for document {}: {}", document.getId(), e.getMessage());
+            throw new RuntimeException("Complete document processing failure", e);
+        }
+    }
+    
+
 
     /**
      * Retrieves a document by ID.

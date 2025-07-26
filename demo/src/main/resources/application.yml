@@ -38,6 +38,8 @@ spring:
       max-file-size: 50MB
       max-request-size: 50MB
       enabled: true
+      file-size-threshold: 2KB
+      location: ${java.io.tmpdir}
       
 server:
   port: 8080
@@ -47,6 +49,9 @@ server:
     enabled: true
     mime-types: text/html,text/xml,text/plain,text/css,application/javascript,application/json
     min-response-size: 1024
+  tomcat:
+    max-http-form-post-size: 52428800
+    max-swallow-size: 52428800
 
 ai:
   openai:
@@ -57,11 +62,26 @@ ai:
   rag:
     top-k: 3
     similarity-threshold: 0.7
-    chunk-size: 1000
-    chunk-overlap: 200
+    chunk-size: 2000
+    chunk-overlap: 100
   vector-db:
     type: pgvector
     dimension: 1536
+  document:
+    processing:
+      batch-size: 10
+      max-concurrent-requests: 2
+      timeout: 300000
+      streaming-enabled: true
+      circuit-breaker-enabled: true
+      max-document-size: 100000
+  circuit-breaker:
+    failure-threshold: 5
+    success-threshold: 3
+    timeout-duration: 60
+  rate-limit:
+    max-requests-per-minute: 100
+    window-size-seconds: 60
 
 springdoc:
   api-docs:

@@ -1,0 +1,5 @@
+This is a test document that will be repeated many times to simulate a larger document for testing memory optimization. 
+The document processing should now handle this efficiently with batch processing and proper memory management.
+This content will be repeated multiple times to create a document that would generate multiple chunks.
+Each chunk will be processed in batches to prevent memory issues.
+The system should now be able to handle documents without running into OutOfMemoryError.

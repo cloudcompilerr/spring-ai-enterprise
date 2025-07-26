@@ -27,4 +27,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:8080/actuator/health || exit 1
 
 # Run the application with proper memory settings
-ENTRYPOINT ["java", "-Xmx1g", "-Xms512m", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-Xmx4g", "-Xms2g", "-XX:+UseG1GC", "-XX:MaxGCPauseMillis=200", "-XX:+UseStringDeduplication", "-XX:MaxMetaspaceSize=512m", "-jar", "/app/app.jar"]
