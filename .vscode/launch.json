@@ -5,7 +5,7 @@
             "name": "Spring Boot-DemoApplication<demo>",
             "request": "launch",
             "cwd": "${workspaceFolder}",
-            "mainClass": "com.example.ai.demo.DemoApplication",
+            "mainClass": "com.cloudcompilerr.ai.demo.DemoApplication",
             "projectName": "demo",
             "args": "",
             "envFile": "${workspaceFolder}/.env"

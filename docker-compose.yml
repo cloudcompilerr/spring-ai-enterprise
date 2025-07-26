@@ -10,11 +10,13 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_PROFILES_ACTIVE=default
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/spring_ai_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LOGGING_LEVEL_ROOT=INFO
+      - LOGGING_LEVEL_COM_EXAMPLE_AI=DEBUG
     volumes:
       - ./data:/app/data
     depends_on:
@@ -42,7 +44,7 @@ services:
       - POSTGRES_PASSWORD=postgres
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./vector-db/src/main/resources/db/pgvector-init.sql:/docker-entrypoint-initdb.d/pgvector-init.sql
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     networks:
       - spring-ai-network
     restart: unless-stopped
