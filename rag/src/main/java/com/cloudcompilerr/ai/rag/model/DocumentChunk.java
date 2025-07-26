@@ -45,7 +45,7 @@ public class DocumentChunk {
     @Column(name = "chunk_index")
     private Integer chunkIndex;
 
-    @Column(name = "embedding_vector", columnDefinition = "vector")
+    @Column(name = "embedding_vector", columnDefinition = "vector(1536)")
     private float[] embeddingVector;
     
     /**

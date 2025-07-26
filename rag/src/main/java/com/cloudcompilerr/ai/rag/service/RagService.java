@@ -82,8 +82,9 @@ public class RagService {
             RagConfig ragConfig = aiProperties.getRag().asRagConfig();
             
             log.debug("Retrieving relevant document chunks");
+            String vectorString = documentChunkRepository.vectorToString(questionEmbedding);
             List<DocumentChunk> relevantChunks = documentChunkRepository.findSimilarChunksWithThreshold(
-                    questionEmbedding,
+                    vectorString,
                     ragConfig.similarityThreshold(),
                     ragConfig.topK());
             
@@ -196,8 +197,9 @@ public class RagService {
             log.debug("Retrieving relevant document chunks with topK={}, threshold={}", 
                     params.topK(), params.threshold());
             
+            String vectorString = documentChunkRepository.vectorToString(questionEmbedding);
             List<DocumentChunk> relevantChunks = documentChunkRepository.findSimilarChunksWithThreshold(
-                    questionEmbedding,
+                    vectorString,
                     params.threshold(),
                     params.topK());
             

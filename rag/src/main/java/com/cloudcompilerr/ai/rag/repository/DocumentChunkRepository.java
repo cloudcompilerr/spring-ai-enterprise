@@ -16,6 +16,29 @@ import java.util.List;
 public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, Long> {
 
     /**
+     * Utility method to convert float array to PostgreSQL vector format.
+     * 
+     * @param vector The float array to convert
+     * @return String representation in vector format [1.0,2.0,3.0]
+     */
+    default String vectorToString(float[] vector) {
+        if (vector == null || vector.length == 0) {
+            return "[]";
+        }
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+        for (int i = 0; i < vector.length; i++) {
+            if (i > 0) {
+                sb.append(",");
+            }
+            sb.append(vector[i]);
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    /**
      * Find chunks by document.
      *
      * @param document The document to find chunks for
@@ -39,10 +62,10 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, Lo
      * @return List of similar document chunks
      */
     @Query(value = "SELECT dc.* FROM document_chunks dc " +
-            "ORDER BY dc.embedding_vector <-> :embeddingVector LIMIT :limit", 
+            "ORDER BY dc.embedding_vector <-> :embeddingVector::vector LIMIT :limit", 
             nativeQuery = true)
     List<DocumentChunk> findSimilarChunks(
-            @Param("embeddingVector") float[] embeddingVector, 
+            @Param("embeddingVector") String embeddingVector, 
             @Param("limit") int limit);
 
     /**
@@ -54,11 +77,11 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, Lo
      * @return List of similar document chunks
      */
     @Query(value = "SELECT dc.* FROM document_chunks dc " +
-            "WHERE dc.embedding_vector <-> :embeddingVector < :threshold " +
-            "ORDER BY dc.embedding_vector <-> :embeddingVector LIMIT :limit", 
+            "WHERE dc.embedding_vector <-> :embeddingVector::vector < :threshold " +
+            "ORDER BY dc.embedding_vector <-> :embeddingVector::vector LIMIT :limit", 
             nativeQuery = true)
     List<DocumentChunk> findSimilarChunksWithThreshold(
-            @Param("embeddingVector") float[] embeddingVector, 
+            @Param("embeddingVector") String embeddingVector, 
             @Param("threshold") float threshold,
             @Param("limit") int limit);
 }
